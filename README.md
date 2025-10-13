@@ -19,7 +19,7 @@ Automatic Flash Messages: Success/Error messages automatically dismiss after a f
 # Technology Stack
 Backend: Python (Flask)
 
-Database: (Assuming local file processing, if using a DB, list it here)
+No Databse(system not designed to save any data)
 
 Frontend Styling: Tailwind CSS
 
@@ -27,7 +27,7 @@ Templating: Jinja2
 
 Data Processing: Pandas / Openpyxl (for Excel file handling)
 
-Deployment: Ready for deployment on platforms like Render or Heroku (using Gunicorn).
+Deployment: Render or Heroku (using Gunicorn).
 
 # Deployment Instructions
 Clone the repository.
