@@ -4,7 +4,7 @@ import pandas as pd
 
 # --- Configuration ---
 app = Flask(__name__)
-app.secret_key = os.urandom(24) 
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
