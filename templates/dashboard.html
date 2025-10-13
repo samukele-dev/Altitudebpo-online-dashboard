@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Altitude BPO Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script>
+        // Tailwind Configuration with a light theme palette
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Logo Color Palette
+                        'logo-blue': '#4D96FF', // Primary Accent (The chosen color)
+                        'logo-purple': '#9C78E4', // Secondary Accent (For diversity, if needed)
+
+                        // Theme Colors (Light)
+                        'light-bg': '#FFFFFF', // Main White Background
+                        'light-card-bg': '#F9FAFB', // Slightly off-white for cards
+                        'light-header-bg': '#FFFFFF', // White header
+                        'light-text': '#1F2937', // Dark Gray Text for readability
+                        'light-border': '#E5E7EB', // Light border/divider color
+
+                        // Functional Colors
+                        'primary-accent': '#4D96FF', // Vibrant Blue for primary actions/headers
+                        'secondary-accent': '#9C78E4', // Purple for secondary elements
+                        'success-icon': '#10B981', // Emerald Green for success
+                        'danger-icon': '#EF4444', // Red for danger/shortfall
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for a cleaner look in a light theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #F9FAFB;
+            /* Card background */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4D96FF;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9C78E4;
+        }
+
+        body {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            overflow-x: hidden;
+            overflow-y: hidden;
+        }
+
+        .multi-select-box {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #E5E7EB;
+            background-color: #FFFFFF;
+            min-height: 42px;
+            /* Matches height of input fields */
+            cursor: pointer;
+            /* Indicate it is clickable */
+        }
+
+        .multi-select-box:focus-within {
+            outline: 2px solid #4D96FF;
+            /* primary-accent */
+            outline-offset: 2px;
+            border-color: #4D96FF;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            background-color: #4D96FF;
+            /* primary-accent */
+            color: white;
+            padding: 0.25rem 0.5rem;
+            margin: 2px;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .tag-remove {
+            margin-left: 0.5rem;
+            cursor: pointer;
+        }
+
+        .absolute-dropdown {
+            position: absolute;
+            z-index: 50;
+            top: 100%;
+            left: 0;
+        }
+
+        /* --- Custom Large Font Overrides (User Requested) --- */
+        @media (min-width: 1024px) {
+            .lg\:text-5xl {
+                font-size: 7rem !important;
+                line-height: 2;
+            }
+        }
+
+        .text-lg {
+            font-size: 3.5rem !important;
+            line-height: 1.75rem;
+        }
+
+        .font-medium {
+            font-weight: 500 !important;
+            font-size: 2rem !important;
+        }
+
+        .text-sm {
+            font-size: 2rem !important;
+            line-height: 1.25rem;
+        }
+
+        .h-10 {
+            height: 4rem !important;
+        }
+
+        .text-3xl {
+            font-size: 3rem !important;
+            line-height: 2.25rem;
+        }
+
+        .text-xt {
+            font-size: 0.75rem !important;
+            line-height: 1rem;
+        }
+
+        .text-xw {
+            font-size: 0.75rem !important;
+            line-height: 1rem;
+        }
+
+        .text-xz {
+            font-size: 1rem !important;
+            line-height: 1rem;
+        }
+
+        /* Add transition class for smooth disappearance */
+        .flash-message {
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .flash-message-hidden {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+    </style>
+</head>
+
+<body class="bg-light-bg text-light-text min-h-screen">
+
+    <div class="mx-auto">
+        <div
+            class="bg-light-header-bg p-4 rounded-lg shadow-lg flex flex-col md:flex-row justify-between items-center mb-6 border-b border-light-border">
+
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Altitude BPO Logo"
+                class="h-10 w-auto mr-3">
+
+            <div id="filter-controls-row" class="filter-team w-full md:w-1/3 relative mb-6 flex space-x-4">
+
+                <label for="team-select-dropdown" class="block text-xt font-medium mb-1 flex items-center">
+                    Filter by Team:
+                </label>
+                <div id="team-multi-select-box" class="multi-select-box">
+                    <span id="select-team-placeholder" class="text-gray-400 text-xw">Select one or more teams...</span>
+                </div>
+                <select id="team-select-dropdown" multiple size="5"
+                    class="w-full p-2 rounded-lg bg-white border border-light-border text-light-text focus:ring-primary-accent focus:border-primary-accent text-xz hidden absolute-dropdown">
+                </select>
+
+            </div>
+
+
+            <div class="flex space-x-4 mt-4 md:mt-0">
+                <a href="{{ url_for('upload_file') }}"
+                    class="flex items-center text-white bg-primary-accent hover:bg-primary-accent/90 px-4 py-2 rounded-lg transition duration-200 shadow-md text-md">
+                    <i class="fas fa-file-upload mr-2"></i> Upload
+                </a>
+                <a href="{{ url_for('logout') }}"
+                    class="flex items-center text-light-text hover:bg-gray-100 border border-light-border px-4 py-2 rounded-lg transition duration-200 shadow-sm text-md">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard-content" class="mx-auto">
+
+        <h1 class="text-3xl font-extrabold text-primary-accent p-6" style="text-align: center;">
+            Vodacom Funeral Sales Performance Update
+        </h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mb-4" id="flash-messages-container">
+            {% for category, message in messages %}
+            <div class="p-3 mb-2 rounded-lg font-semibold flex items-center border flash-message 
+                     {% if category == 'success' %} bg-green-50 text-green-800 border-green-300
+                     {% elif category == 'danger' %} bg-red-50 text-red-800 border-red-300
+                     {% else %} bg-blue-50 text-blue-800 border-blue-300
+                     {% endif %}">
+                <i class="
+                     {% if category == 'success' %} fas fa-check-circle text-green-500
+                     {% elif category == 'danger' %} fas fa-exclamation-circle text-red-500
+                     {% else %} fas fa-info-circle text-blue-500
+                     {% endif %} mr-2"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+
+        {% if stats %}
+        <div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+            <div
+                class="bg-light-card-bg p-4 rounded-xl shadow-md border-b-4 border-primary-accent transition hover:shadow-lg">
+                <div class="flex items-end justify-between">
+                    <p id="kpi-target" class="text-4xl lg:text-5xl font-extrabold text-light-text">0</p>
+                    <div class="flex flex-col items-end">
+                        <p class="text-sm font-medium uppercase text-gray-500">Total Target</p>
+                        <i class="fas fa-crosshairs text-3xl opacity-50 text-primary-accent"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4 border-secondary-accent transition hover:shadow-lg">
+                <div class="flex items-end justify-between">
+                    <p id="kpi-current" class="text-4xl lg:text-5xl font-extrabold text-light-text">0</p>
+                    <div class="flex flex-col items-end">
+                        <p class="text-sm font-medium uppercase text-gray-500">Total Current</p>
+                        <i class="fas fa-hand-holding-usd text-3xl opacity-50 text-secondary-accent"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4 border-gray-400 transition hover:shadow-lg">
+                <div class="flex items-end justify-between">
+                    <p id="kpi-shortfall" class="text-4xl lg:text-5xl font-extrabold text-light-text">0</p>
+                    <div class="flex flex-col items-end">
+                        <p class="text-sm font-medium uppercase text-gray-500">Total Shortfall</p>
+                        <i class="fas fa-minus-circle text-3xl opacity-50 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-light-card-bg p-6 rounded-xl shadow-lg">
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-light-border">
+                <table class="min-w-full table-auto">
+                    <thead class="bg-primary-accent text-white">
+                        <tr>
+                            <th class="p-3 text-left tracking-wider uppercase text-sm">Team <i
+                                    class="fas fa-users-cog ml-1 opacity-75"></i></th>
+                            <th class="p-3 text-left tracking-wider uppercase text-sm">Target <i
+                                    class="fas fa-crosshairs ml-1 opacity-75"></i></th>
+                            <th class="p-3 text-left tracking-wider uppercase text-sm">Current <i
+                                    class="fas fa-hand-holding-usd ml-1 opacity-75"></i></th>
+                            <th class="p-3 text-left tracking-wider uppercase text-sm">Shortfall <i
+                                    class="fas fa-minus-circle ml-1 opacity-75"></i></th>
+                            <th class="p-3 text-center tracking-wider uppercase text-sm">Status <i
+                                    class="fas fa-info-circle ml-1 opacity-75"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody id="stats-table-body" class="divide-y divide-light-border bg-white">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        {% else %}
+        <div class="p-10 text-center bg-light-card-bg border border-light-border rounded-lg shadow-sm">
+            <p class="text-xl text-gray-500 mb-5 flex items-center justify-center">
+                <i class="fas fa-exclamation-circle mr-3 text-secondary-accent text-3xl"></i>
+                No call centre data uploaded yet.
+            </p>
+            <a href="{{ url_for('upload_file') }}"
+                class="inline-block bg-primary-accent hover:bg-primary-accent/90 text-white font-bold py-2 px-6 rounded-full transition duration-300 transform hover:scale-105 shadow-md">
+                <i class="fas fa-file-upload mr-2"></i> Upload an Excel file now
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        let dashboardData = {{ stats | tojson | safe }};
+
+        // New/Updated elements for multi-select
+        const teamDropdown = document.getElementById('team-select-dropdown');
+        const teamSelectBox = document.getElementById('team-multi-select-box');
+        const teamPlaceholder = document.getElementById('select-team-placeholder');
+        let selectedTeams = []; // Array to hold currently selected teams
+
+        // KPI elements
+        const kpiTarget = document.getElementById('kpi-target');
+        const kpiCurrent = document.getElementById('kpi-current');
+        const kpiShortfall = document.getElementById('kpi-shortfall');
+
+        /**
+         * New function to automatically dismiss flash messages.
+         */
+        function dismissFlashMessages() {
+            const messages = document.querySelectorAll('.flash-message');
+            const DURATION = 5000; // 5 seconds
+
+            messages.forEach(message => {
+                setTimeout(() => {
+                    // 1. Start the visual fade-out (using the CSS transition)
+                    message.classList.add('flash-message-hidden');
+
+                    // 2. After the transition is complete (500ms for opacity/transform), remove from DOM
+                    setTimeout(() => {
+                        message.remove();
+                    }, 500);
+
+                }, DURATION);
+            });
+        }
+
+        // Function to calculate and update KPI cards (Uses ALL data, not filtered data)
+        function updateKPIs(data) {
+            const totalTarget = data.reduce((sum, row) => sum + parseFloat(row.Target || 0), 0);
+            const totalCurrent = data.reduce((sum, row) => sum + parseFloat(row.Current || 0), 0);
+            const totalShortfall = data.reduce((sum, row) => sum + parseFloat(row.Shortfall || 0), 0);
+
+            kpiTarget.textContent = totalTarget.toLocaleString();
+            kpiCurrent.textContent = totalCurrent.toLocaleString();
+            kpiShortfall.textContent = totalShortfall.toLocaleString();
+
+            // Apply color to shortfall based on value
+            kpiShortfall.classList.remove('text-success-icon', 'text-danger-icon', 'text-light-text');
+            if (totalShortfall > 0) {
+                kpiShortfall.classList.add('text-danger-icon'); // Red
+            } else if (totalShortfall < 0) {
+                kpiShortfall.classList.add('text-success-icon'); // Green
+            } else {
+                kpiShortfall.classList.add('text-light-text'); // Dark Gray/Black
+            }
+        }
+
+        // Function to dynamically render the table based on filtered data
+        function renderTable(data) {
+            const tableBody = document.getElementById('stats-table-body');
+            tableBody.innerHTML = '';
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-gray-500">No data found matching your filters.</td></tr>';
+                return;
+            }
+
+            data.forEach(row => {
+                const current = parseFloat(row.Current || 0);
+                const target = parseFloat(row.Target || 0);
+                const shortfall = parseFloat(row.Shortfall || 0);
+                const isAchieved = current >= target;
+
+                const shortfallColor = shortfall > 0 ? 'text-danger-icon' : (shortfall < 0 ? 'text-success-icon' : 'text-gray-500');
+
+                const statusBadge = isAchieved
+                    ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-success-icon border border-green-200">
+                    <i class="fas fa-check-circle mr-1"></i> Achieved
+                    </span>`
+                    : `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-danger-icon border border-red-200">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> Behind
+                    </span>`;
+
+                const rowHTML = `
+                <tr class="hover:bg-gray-50 transition duration-150">
+                    <td class="p-3 font-medium">${row.Team || 'N/A'}</td>
+                    <td class="p-3 text-lg font-bold">${(row.Target || 0).toLocaleString()}</td>
+                    <td class="p-3 text-lg font-bold">${(row.Current || 0).toLocaleString()}</td>
+                    <td class="p-3 text-lg font-bold ${shortfallColor}">${(row.Shortfall || 0).toLocaleString()}</td>
+                    <td class="p-3 text-center">${statusBadge}</td>
+                </tr>
+            `;
+                tableBody.insertAdjacentHTML('beforeend', rowHTML);
+            });
+        }
+
+        // Function to populate the team filter dropdown for Multi-select
+        function populateTeamFilter(data) {
+            const teams = [...new Set(data.map(item => item.Team).filter(t => t))].sort();
+
+            // Clear existing options
+            teamDropdown.innerHTML = '';
+
+            teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team;
+                option.textContent = team;
+                teamDropdown.appendChild(option);
+            });
+        }
+
+        // Function to render the selected tags in the display box
+        function renderTags() {
+            teamSelectBox.innerHTML = '';
+            if (selectedTeams.length === 0) {
+                teamSelectBox.appendChild(teamPlaceholder);
+            } else {
+                selectedTeams.forEach(team => {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.innerHTML = `${team} <i class="fas fa-times tag-remove text-xs" data-team="${team}"></i>`;
+                    teamSelectBox.appendChild(tag);
+                });
+            }
+        }
+
+        // Event listener for the team selection
+        function handleTeamSelection(event) {
+            const selectedOptions = Array.from(teamDropdown.selectedOptions).map(option => option.value);
+
+            // Update the selectedTeams array
+            selectedTeams = selectedOptions;
+
+            // Re-render the tags and apply filters (which only updates the table)
+            renderTags();
+            applyFilters();
+        }
+
+        // Event listener for removing tags
+        function handleTagRemoval(event) {
+            if (event.target.classList.contains('tag-remove')) {
+                const teamToRemove = event.target.dataset.team;
+
+                // Remove team from selectedTeams array
+                selectedTeams = selectedTeams.filter(team => team !== teamToRemove);
+
+                // Deselect in the hidden dropdown
+                Array.from(teamDropdown.options).forEach(option => {
+                    if (option.value === teamToRemove) {
+                        option.selected = false;
+                    }
+                });
+
+                // Re-render the tags and apply filters (which only updates the table)
+                renderTags();
+                applyFilters();
+            }
+        }
+
+        // The main filtering logic
+        function applyFilters() {
+            // Get selected teams from the global array
+            const teamsToFilter = selectedTeams;
+            // The only filter is team selection. Remove minTarget and searchTerm logic.
+
+            const filteredData = dashboardData.filter(row => {
+                const team = row.Team ? String(row.Team) : '';
+
+                // Team Filter: Match if no teams are selected OR if the team is in the selectedTeams array
+                const teamMatch = teamsToFilter.length === 0 || teamsToFilter.includes(team);
+
+                // Only return true if the team matches (or no teams are selected)
+                return teamMatch;
+            });
+
+            // IMPORTANT: updateKPIs is NOT called here.
+            renderTable(filteredData);
+        }
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            // Dismiss flash messages on load
+            dismissFlashMessages();
+
+            if (dashboardData && dashboardData.length > 0) {
+                // 1. Calculate KPIs on the FULL dataset (STATIC)
+                updateKPIs(dashboardData);
+                // 2. Populate filters and render the initial (unfiltered) table
+                populateTeamFilter(dashboardData);
+                renderTable(dashboardData); // Start by showing all data
+            } else {
+                renderTable([]);
+                updateKPIs([]);
+            }
+
+            // Attach event listeners for the new multi-select logic
+            if (teamDropdown) teamDropdown.addEventListener('change', handleTeamSelection);
+            if (teamSelectBox) teamSelectBox.addEventListener('click', (e) => {
+                // Prevent the click on a tag removal icon from opening the dropdown
+                if (!e.target.classList.contains('tag-remove')) {
+                    teamDropdown.classList.toggle('hidden');
+                }
+            });
+            // We listen to the whole body for tag removal to catch dynamically created elements
+            document.addEventListener('click', handleTagRemoval);
+
+            // Close dropdown if user clicks outside of it
+            document.addEventListener('click', (e) => {
+                const isClickInsideTeamFilter = document.querySelector('.filter-team').contains(e.target);
+                if (!isClickInsideTeamFilter) {
+                    teamDropdown.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
