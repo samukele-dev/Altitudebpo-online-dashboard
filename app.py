@@ -61,7 +61,7 @@ def logout():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
-    """Handles file upload and basic Excel data reading."""
+    """Handles file upload and calculates Shortfall after reading Excel data."""
     if 'logged_in' not in session:
         flash('Please log in to access this page.', 'warning')
         return redirect(url_for('login'))
@@ -69,14 +69,12 @@ def upload_file():
     global CALL_CENTER_STATS
     
     if request.method == 'POST':
-        # Check if the post request has the file part
+        # ... (Keep file handling checks the same) ...
         if 'file' not in request.files:
             flash('No file part', 'danger')
             return redirect(request.url)
         file = request.files['file']
         
-        # If the user does not select a file, the browser submits an
-        # empty file without a filename.
         if file.filename == '':
             flash('No selected file', 'danger')
             return redirect(request.url)
@@ -89,16 +87,33 @@ def upload_file():
             try:
                 # Read the Excel file into a pandas DataFrame
                 df = pd.read_excel(filepath)
-                # Keep only the columns we care about for the dashboard
-                required_cols = ['Team', 'Target', 'Current', 'Shortfall']
-                df_stats = df[[col for col in required_cols if col in df.columns]]
-                
-                # Convert the DataFrame to a list of dictionaries (JSON-like structure)
-                # so it's easy to pass to the frontend
-                CALL_CENTER_STATS = df_stats.to_dict('records')
-                
-                flash(f'File "{filename}" successfully uploaded and data loaded!', 'success')
-                return redirect(url_for('dashboard'))
+
+                # --- NEW LOGIC: Calculate Shortfall ---
+                # Ensure the necessary columns exist and are numeric
+                if 'Target' in df.columns and 'Current' in df.columns:
+                    # Drop rows where critical columns are missing
+                    df.dropna(subset=['Target', 'Current'], inplace=True)
+                    
+                    # Convert to numeric, coercing errors will turn non-numbers into NaN
+                    df['Target'] = pd.to_numeric(df['Target'], errors='coerce')
+                    df['Current'] = pd.to_numeric(df['Current'], errors='coerce')
+
+                    # The calculation: Shortfall = Target - Current
+                    df['Shortfall'] = df['Target'] - df['Current']
+
+                    # Keep only the columns we need, including the newly calculated Shortfall
+                    required_cols = ['Team', 'Target', 'Current', 'Shortfall']
+                    df_stats = df[[col for col in required_cols if col in df.columns]]
+                    
+                    # Convert the DataFrame to a list of dictionaries
+                    CALL_CENTER_STATS = df_stats.to_dict('records')
+                    
+                    flash(f'File "{filename}" successfully uploaded and data loaded!', 'success')
+                    return redirect(url_for('dashboard'))
+                else:
+                    flash('Error: Excel file must contain "Target" and "Current" columns.', 'danger')
+                    return redirect(request.url)
+                    
             except Exception as e:
                 flash(f'Error processing file: {e}', 'danger')
                 return redirect(request.url)
@@ -108,14 +123,26 @@ def upload_file():
 
     return render_template('upload.html')
 
+
 @app.route('/dashboard')
 def dashboard():
-    """Displays the main dashboard with loaded data."""
+    """Displays the main dashboard with loaded data and calculated totals."""
     if 'logged_in' not in session:
         flash('Please log in to access this page.', 'warning')
         return redirect(url_for('login'))
         
-    return render_template('dashboard.html', stats=CALL_CENTER_STATS)
+    # --- NEW LOGIC: Calculate Total KPIs for Summary Cards ---
+    totals = {'Total Target': 0, 'Total Current': 0, 'Total Shortfall': 0}
+    
+    if CALL_CENTER_STATS:
+        df = pd.DataFrame(CALL_CENTER_STATS)
+        
+        # Ensure columns are numeric before summing
+        for col in ['Target', 'Current', 'Shortfall']:
+            if col in df.columns:
+                totals[f'Total {col}'] = df[col].sum()
+    
+    return render_template('dashboard.html', stats=CALL_CENTER_STATS, totals=totals)
 
 # --- API Endpoint (For JavaScript/Filtering) ---
 @app.route('/api/stats')
