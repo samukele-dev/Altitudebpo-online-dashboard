@@ -177,6 +177,10 @@
 
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Altitude BPO Logo"
                 class="h-10 w-auto mr-3">
+            
+            <p class="text-xl font-bold text-primary-accent mr-auto ml-4 hidden md:block">
+                {{ user_group }} Dashboard
+            </p>
 
             <div id="filter-controls-row" class="filter-team w-full md:w-1/3 relative mb-6 flex space-x-4">
 
@@ -217,15 +221,15 @@
         <div class="mb-4" id="flash-messages-container">
             {% for category, message in messages %}
             <div class="p-3 mb-2 rounded-lg font-semibold flex items-center border flash-message 
-                     {% if category == 'success' %} bg-green-50 text-green-800 border-green-300
-                     {% elif category == 'danger' %} bg-red-50 text-red-800 border-red-300
-                     {% else %} bg-blue-50 text-blue-800 border-blue-300
-                     {% endif %}">
+                            {% if category == 'success' %} bg-green-50 text-green-800 border-green-300
+                            {% elif category == 'danger' %} bg-red-50 text-red-800 border-red-300
+                            {% else %} bg-blue-50 text-blue-800 border-blue-300
+                            {% endif %}">
                 <i class="
-                     {% if category == 'success' %} fas fa-check-circle text-green-500
-                     {% elif category == 'danger' %} fas fa-exclamation-circle text-red-500
-                     {% else %} fas fa-info-circle text-blue-500
-                     {% endif %} mr-2"></i>
+                            {% if category == 'success' %} fas fa-check-circle text-green-500
+                            {% elif category == 'danger' %} fas fa-exclamation-circle text-red-500
+                            {% else %} fas fa-info-circle text-blue-500
+                            {% endif %} mr-2"></i>
                 {{ message }}
             </div>
             {% endfor %}
@@ -234,13 +238,15 @@
         {% endwith %}
 
 
-        {% if stats %}
+        {% if stats is not none %}
         <div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
             <div
                 class="bg-light-card-bg p-4 rounded-xl shadow-md border-b-4 border-primary-accent transition hover:shadow-lg">
                 <div class="flex items-end justify-between">
-                    <p id="kpi-target" class="text-4xl lg:text-5xl font-extrabold text-light-text">0</p>
+                    <p id="kpi-target" class="text-4xl lg:text-5xl font-extrabold text-light-text">
+                        {{ totals['Total Target'] | int | to_localized_string }}
+                    </p>
                     <div class="flex flex-col items-end">
                         <p class="text-sm font-medium uppercase text-gray-500">Total Target</p>
                         <i class="fas fa-crosshairs text-3xl opacity-50 text-primary-accent"></i>
@@ -251,7 +257,9 @@
             <div
                 class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4 border-secondary-accent transition hover:shadow-lg">
                 <div class="flex items-end justify-between">
-                    <p id="kpi-current" class="text-4xl lg:text-5xl font-extrabold text-light-text">0</p>
+                    <p id="kpi-current" class="text-4xl lg:text-5xl font-extrabold text-light-text">
+                        {{ totals['Total Current'] | int | to_localized_string }}
+                    </p>
                     <div class="flex flex-col items-end">
                         <p class="text-sm font-medium uppercase text-gray-500">Total Current</p>
                         <i class="fas fa-hand-holding-usd text-3xl opacity-50 text-secondary-accent"></i>
@@ -260,12 +268,27 @@
             </div>
 
             <div
-                class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4 border-gray-400 transition hover:shadow-lg">
+                class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4 
+                    {% if totals['Total Shortfall'] > 0 %} border-danger-icon
+                    {% elif totals['Total Shortfall'] < 0 %} border-success-icon
+                    {% else %} border-gray-400
+                    {% endif %}
+                    transition hover:shadow-lg">
                 <div class="flex items-end justify-between">
-                    <p id="kpi-shortfall" class="text-4xl lg:text-5xl font-extrabold text-light-text">0</p>
+                    <p id="kpi-shortfall" class="text-4xl lg:text-5xl font-extrabold 
+                        {% if totals['Total Shortfall'] > 0 %} text-danger-icon
+                        {% elif totals['Total Shortfall'] < 0 %} text-success-icon
+                        {% else %} text-light-text
+                        {% endif %}">
+                        {{ totals['Total Shortfall'] | int | to_localized_string }}
+                    </p>
                     <div class="flex flex-col items-end">
                         <p class="text-sm font-medium uppercase text-gray-500">Total Shortfall</p>
-                        <i class="fas fa-minus-circle text-3xl opacity-50 text-gray-400"></i>
+                        <i class="fas fa-minus-circle text-3xl opacity-50 
+                            {% if totals['Total Shortfall'] > 0 %} text-danger-icon
+                            {% elif totals['Total Shortfall'] < 0 %} text-success-icon
+                            {% else %} text-gray-400
+                            {% endif %}"></i>
                     </div>
                 </div>
             </div>
@@ -289,7 +312,7 @@
                         </tr>
                     </thead>
                     <tbody id="stats-table-body" class="divide-y divide-light-border bg-white">
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
@@ -299,7 +322,7 @@
         <div class="p-10 text-center bg-light-card-bg border border-light-border rounded-lg shadow-sm">
             <p class="text-xl text-gray-500 mb-5 flex items-center justify-center">
                 <i class="fas fa-exclamation-circle mr-3 text-secondary-accent text-3xl"></i>
-                No call centre data uploaded yet.
+                No call centre data uploaded yet for **{{ user_group }}**.
             </p>
             <a href="{{ url_for('upload_file') }}"
                 class="inline-block bg-primary-accent hover:bg-primary-accent/90 text-white font-bold py-2 px-6 rounded-full transition duration-300 transform hover:scale-105 shadow-md">
@@ -310,18 +333,17 @@
     </div>
 
     <script>
+        // Data comes from the server, which is already filtered to the user's floor.
         let dashboardData = {{ stats | tojson | safe }};
 
-        // New/Updated elements for multi-select
+        // We no longer need to calculate KPIs in JS, but we keep the element IDs
+        // for consistency, even though they are now populated by Jinja.
+
+        // Elements for multi-select
         const teamDropdown = document.getElementById('team-select-dropdown');
         const teamSelectBox = document.getElementById('team-multi-select-box');
         const teamPlaceholder = document.getElementById('select-team-placeholder');
         let selectedTeams = []; // Array to hold currently selected teams
-
-        // KPI elements
-        const kpiTarget = document.getElementById('kpi-target');
-        const kpiCurrent = document.getElementById('kpi-current');
-        const kpiShortfall = document.getElementById('kpi-shortfall');
 
         /**
          * New function to automatically dismiss flash messages.
@@ -344,26 +366,7 @@
             });
         }
 
-        // Function to calculate and update KPI cards (Uses ALL data, not filtered data)
-        function updateKPIs(data) {
-            const totalTarget = data.reduce((sum, row) => sum + parseFloat(row.Target || 0), 0);
-            const totalCurrent = data.reduce((sum, row) => sum + parseFloat(row.Current || 0), 0);
-            const totalShortfall = data.reduce((sum, row) => sum + parseFloat(row.Shortfall || 0), 0);
-
-            kpiTarget.textContent = totalTarget.toLocaleString();
-            kpiCurrent.textContent = totalCurrent.toLocaleString();
-            kpiShortfall.textContent = totalShortfall.toLocaleString();
-
-            // Apply color to shortfall based on value
-            kpiShortfall.classList.remove('text-success-icon', 'text-danger-icon', 'text-light-text');
-            if (totalShortfall > 0) {
-                kpiShortfall.classList.add('text-danger-icon'); // Red
-            } else if (totalShortfall < 0) {
-                kpiShortfall.classList.add('text-success-icon'); // Green
-            } else {
-                kpiShortfall.classList.add('text-light-text'); // Dark Gray/Black
-            }
-        }
+        // --- REMOVED: updateKPIs function is no longer needed. KPIs are static (global totals) from Python. ---
 
         // Function to dynamically render the table based on filtered data
         function renderTable(data) {
@@ -375,16 +378,25 @@
             }
 
             data.forEach(row => {
+                // Ensure data is numeric
                 const current = parseFloat(row.Current || 0);
                 const target = parseFloat(row.Target || 0);
                 const shortfall = parseFloat(row.Shortfall || 0);
                 const isAchieved = current >= target;
 
+                // Helper to format numbers with commas (simple JS solution)
+                const formatNumber = (num) => {
+                    // Check if it's a negative number and handle the sign
+                    const sign = num < 0 ? '-' : '';
+                    const absoluteNum = Math.abs(num);
+                    return sign + absoluteNum.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                };
+
                 const shortfallColor = shortfall > 0 ? 'text-danger-icon' : (shortfall < 0 ? 'text-success-icon' : 'text-gray-500');
 
                 const statusBadge = isAchieved
                     ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-success-icon border border-green-200">
-                    <i class="fas fa-check-circle mr-1"></i> Achieved
+                    <i class="fas fa-check-circle mr-1"></i> On Target
                     </span>`
                     : `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-danger-icon border border-red-200">
                     <i class="fas fa-exclamation-triangle mr-1"></i> Behind
@@ -393,9 +405,9 @@
                 const rowHTML = `
                 <tr class="hover:bg-gray-50 transition duration-150">
                     <td class="p-3 font-medium">${row.Team || 'N/A'}</td>
-                    <td class="p-3 text-lg font-bold">${(row.Target || 0).toLocaleString()}</td>
-                    <td class="p-3 text-lg font-bold">${(row.Current || 0).toLocaleString()}</td>
-                    <td class="p-3 text-lg font-bold ${shortfallColor}">${(row.Shortfall || 0).toLocaleString()}</td>
+                    <td class="p-3 text-lg font-bold">${formatNumber(target)}</td>
+                    <td class="p-3 text-lg font-bold">${formatNumber(current)}</td>
+                    <td class="p-3 text-lg font-bold ${shortfallColor}">${formatNumber(shortfall)}</td>
                     <td class="p-3 text-center">${statusBadge}</td>
                 </tr>
             `;
@@ -470,7 +482,6 @@
         function applyFilters() {
             // Get selected teams from the global array
             const teamsToFilter = selectedTeams;
-            // The only filter is team selection. Remove minTarget and searchTerm logic.
 
             const filteredData = dashboardData.filter(row => {
                 const team = row.Team ? String(row.Team) : '';
@@ -482,9 +493,12 @@
                 return teamMatch;
             });
 
-            // IMPORTANT: updateKPIs is NOT called here.
             renderTable(filteredData);
         }
+        
+        // Custom Jinja Filter for number formatting (needed if you use my suggested Jinja)
+        // Since we cannot define Jinja filters in HTML, we will rely on the app.py context.
+        // I've added a basic JS formatNumber function inside renderTable for better UX on the rows.
 
         // Initialization
         document.addEventListener('DOMContentLoaded', () => {
@@ -492,14 +506,13 @@
             dismissFlashMessages();
 
             if (dashboardData && dashboardData.length > 0) {
-                // 1. Calculate KPIs on the FULL dataset (STATIC)
-                updateKPIs(dashboardData);
-                // 2. Populate filters and render the initial (unfiltered) table
+                // 1. Populate filters
                 populateTeamFilter(dashboardData);
-                renderTable(dashboardData); // Start by showing all data
+                // 2. Render the initial (unfiltered) table using the user's floor data
+                renderTable(dashboardData);
             } else {
                 renderTable([]);
-                updateKPIs([]);
+                // No need to update KPIs in JS, they are rendered directly by Jinja
             }
 
             // Attach event listeners for the new multi-select logic

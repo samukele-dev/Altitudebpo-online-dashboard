@@ -10,8 +10,32 @@
         input[type="text"], input[type="password"] { width: 100%; padding: 10px; margin: 8px 0 16px 0; display: inline-block; border: 1px solid #555; box-sizing: border-box; background-color: #444; color: white; border-radius: 4px; }
         button { background-color: #495fcd; color: white; padding: 14px 20px; margin: 8px 0; border: none; cursor: pointer; width: 100%; border-radius: 4px; }
         button:hover { opacity: 0.8; }
-        .flash { padding: 10px; margin-bottom: 10px; border-radius: 4px; }
-        .flash.danger { background-color: #f44336; }
+        
+        /* Flash Message Styles */
+        .flash { 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            border-radius: 4px;
+            font-weight: bold; 
+        }
+        
+        /* Critical for 'Invalid credentials' */
+        .flash.danger { 
+            background-color: #f44336; /* Red */
+            color: white; 
+        }
+        
+        /* Critical for 'Login successful' */
+        .flash.success { 
+            background-color: #4CAF50; /* Green */
+            color: white; 
+        }
+        
+        /* Used for 'Please log in' or 'Logged out' when redirecting */
+        .flash.warning, .flash.info { 
+            background-color: #ff9800; /* Orange/Blue fallback */
+            color: white; 
+        }
     </style>
 </head>
 <body>
