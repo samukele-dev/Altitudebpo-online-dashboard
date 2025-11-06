@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --worker-class eventlet -w 1 app:socketio
+    startCommand: gunicorn --worker-class -w 1 app:socketio
     envVars:
       - key: SECRET_KEY
         generateValue: true
