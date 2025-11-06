@@ -2,7 +2,7 @@ import pandas as pd
 import json
 import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from flask_socketio import SocketIO, emit, join_room, disconnect
+from flask_socketio import SocketIO, emit, join_room
 from flask_cors import CORS
 
 # --- Configuration & Setup ---
@@ -10,11 +10,11 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_super_secret_key') 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# SocketIO configuration for deployment
+# SocketIO configuration - use threading instead of eventlet
 socketio = SocketIO(
     app, 
     cors_allowed_origins="*",
-    async_mode='eventlet',  # Use eventlet for better compatibility
+    async_mode='threading',  # Use threading instead of eventlet
     logger=True,
     engineio_logger=True
 )
@@ -440,7 +440,6 @@ if __name__ == '__main__':
     
     print(f"Starting server on port {port} with debug={debug}")
     
-    # For production, use socketio.run instead of app.run
     socketio.run(
         app, 
         host='0.0.0.0', 
