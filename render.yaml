@@ -1,14 +1,10 @@
-# Render infrastructure
 services:
   - type: web
-    name: altitudebpo-online-stats
+    name: altitude-bpo-dashboard
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"  # Tells Gunicorn to run the 'app' object inside 'app.py'
     plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class eventlet -w 1 app:socketio
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.10.8
-      - key: FLASK_ENV
-        value: production
-      # Add other environment variables (like SECRET_KEY) here or via the Render dashboard
+      - key: SECRET_KEY
+        generateValue: true

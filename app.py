@@ -7,9 +7,17 @@ from flask_cors import CORS
 
 # --- Configuration & Setup ---
 app = Flask(__name__)
-app.secret_key = 'your_super_secret_key' 
+app.secret_key = os.environ.get('SECRET_KEY', 'your_super_secret_key') 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-socketio = SocketIO(app, cors_allowed_origins="*") 
+
+# SocketIO configuration for deployment
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins="*",
+    async_mode='eventlet',  # Use eventlet for better compatibility
+    logger=True,
+    engineio_logger=True
+)
 
 # Simple User/Group Management
 USERS = {
@@ -403,13 +411,40 @@ def get_sales_breakdown():
     
     return {'breakdown': SALES_BREAKDOWN_DATA}
 
+# Fallback for SocketIO issues
+@app.route('/check_updates')
+def check_updates():
+    """Fallback endpoint for checking updates if WebSockets fail"""
+    user_group = session.get('user_group', 'Global')
+    return {'status': 'ok', 'group': user_group}
+
 # --- SocketIO Handlers ---
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected:', request.sid)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected:', request.sid)
+
 @socketio.on('join_dashboard')
 def on_join_dashboard(data):
     room_name = data.get('group')
     if room_name and room_name in DASHBOARD_GROUPS:
         join_room(room_name)
-        print(f"Client joined room: {room_name}")
+        print(f"Client {request.sid} joined room: {room_name}")
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    
+    print(f"Starting server on port {port} with debug={debug}")
+    
+    # For production, use socketio.run instead of app.run
+    socketio.run(
+        app, 
+        host='0.0.0.0', 
+        port=port, 
+        debug=debug,
+        allow_unsafe_werkzeug=True
+    )

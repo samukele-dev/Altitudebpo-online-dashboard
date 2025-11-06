@@ -55,7 +55,7 @@
             position: absolute;
             background-color: white;
             min-width: 120px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
             z-index: 1000;
             border-radius: 0.5rem;
             overflow: hidden;
@@ -145,8 +145,15 @@
         }
 
         @keyframes fly-in {
-            0% { transform: translateY(-100%); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .countdown-timer {
@@ -189,7 +196,7 @@
                 <!-- Default content when no data is available -->
                 <div class="team-section">
                     <h3 class="text-xl font-bold text-gray-800 mb-4"></h3>
-                    
+
                     <!-- No data message -->
                     <div class="text-center py-8">
                         <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
@@ -198,14 +205,15 @@
                         </div>
                     </div>
                 </div>
-                
-                
+
+
             </div>
         </div>
     </div>
 
     <div class="mx-auto">
-        <div class="bg-light-header-bg p-4 rounded-lg shadow-lg flex flex-col md:flex-row justify-between items-center mb-6 border-b border-light-border">
+        <div
+            class="bg-light-header-bg p-4 rounded-lg shadow-lg flex flex-col md:flex-row justify-between items-center mb-6 border-b border-light-border">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Altitude BPO Logo"
                 class="h-10 w-auto mr-auto">
             <p class="text-xl font-bold text-primary-accent mr-auto ml-4 hidden md:block">
@@ -213,17 +221,19 @@
             </p>
             <div class="flex space-x-4 mt-4 md:mt-0">
                 {% if user_group == 'Global' %}
-                <form action="{{ url_for('admin_upload_team_file') }}" method="post" enctype="multipart/form-data" class="flex">
+                <form action="{{ url_for('admin_upload_team_file') }}" method="post" enctype="multipart/form-data"
+                    class="flex">
                     <label for="team-file-upload"
                         class="flex items-center text-white bg-primary-accent hover:bg-primary-accent/90 px-4 py-2 rounded-lg transition duration-200 shadow-md text-md cursor-pointer">
                         <i class="fas fa-file-upload mr-2"></i> Team Stats
                     </label>
-                    <input type="file" name="file" id="team-file-upload" required class="hidden" 
+                    <input type="file" name="file" id="team-file-upload" required class="hidden"
                         onchange="this.form.submit()">
                 </form>
                 {% endif %}
 
-                <form action="{{ url_for('upload_breakdown_file') }}" method="post" enctype="multipart/form-data" class="flex" id="breakdown-form">
+                <form action="{{ url_for('upload_breakdown_file') }}" method="post" enctype="multipart/form-data"
+                    class="flex" id="breakdown-form">
                     {% if user_group == 'Global' %}
                     <div class="flex flex-col">
                         <label for="breakdown-file-upload"
@@ -355,11 +365,13 @@
                             </td>
                             <td class="p-3 text-center">
                                 {% if row.Current >= row.Target %}
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-success-icon border border-green-200">
+                                <span
+                                    class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-success-icon border border-green-200">
                                     <i class="fas fa-check-circle mr-1"></i> On Target
                                 </span>
                                 {% else %}
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-danger-icon border border-red-200">
+                                <span
+                                    class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-danger-icon border border-red-200">
                                     <i class="fas fa-exclamation-triangle mr-1"></i> Behind
                                 </span>
                                 {% endif %}
@@ -372,19 +384,22 @@
                                         {% if current_dashboard == 'Global' %} badge-global
                                         {% elif current_dashboard == 'Floor 1' %} badge-floor1
                                         {% else %} badge-floor2
-                                        {% endif %}"
-                                        onclick="toggleDashboardDropdown('{{ row.Team }}')">
+                                        {% endif %}" onclick="toggleDashboardDropdown('{{ row.Team }}')">
                                         {{ current_dashboard }}
                                         <i class="fas fa-chevron-down ml-1 text-xs"></i>
                                     </div>
-                                    <div id="dropdown-{{ row.Team | replace(' ', '-') }}" class="dashboard-dropdown-content">
-                                        <div class="dashboard-option" onclick="assignDashboard('{{ row.Team }}', 'Global')">
+                                    <div id="dropdown-{{ row.Team | replace(' ', '-') }}"
+                                        class="dashboard-dropdown-content">
+                                        <div class="dashboard-option"
+                                            onclick="assignDashboard('{{ row.Team }}', 'Global')">
                                             <i class="fas fa-globe mr-2 text-blue-500"></i> Global
                                         </div>
-                                        <div class="dashboard-option" onclick="assignDashboard('{{ row.Team }}', 'Floor 1')">
+                                        <div class="dashboard-option"
+                                            onclick="assignDashboard('{{ row.Team }}', 'Floor 1')">
                                             <i class="fas fa-building mr-2 text-green-500"></i> Floor 1
                                         </div>
-                                        <div class="dashboard-option" onclick="assignDashboard('{{ row.Team }}', 'Floor 2')">
+                                        <div class="dashboard-option"
+                                            onclick="assignDashboard('{{ row.Team }}', 'Floor 2')">
                                             <i class="fas fa-building mr-2 text-orange-500"></i> Floor 2
                                         </div>
                                     </div>
@@ -418,14 +433,64 @@
         // Global variables
         let breakdownModalTimer = null;
         const BREAKDOWN_MODAL_DURATION = 3.5 * 60 * 1000; // 3.5 minutes in milliseconds (03:30)
+        let socket = null;
 
         // Elements
         const breakdownModal = document.getElementById('breakdown-modal');
         const closeBreakdownModalBtn = document.getElementById('close-breakdown-modal-btn');
         const countdownDisplay = document.getElementById('countdown-display');
         const breakdownData = document.getElementById('breakdown-data');
-        const breakdownFileInput = document.getElementById('breakdown-file-upload');
+        const breakdownFileInput = document.getElementById('breakdown-file-upload'); // FIXED LINE
 
+        // Enhanced Socket.IO connection with fallbacks  
+        function initializeSocket() {  
+            try {
+                socket = io({
+                    transports: ['websocket', 'polling'],
+                    upgrade: true,
+                    rememberUpgrade: true,
+                    timeout: 10000,
+                    reconnection: true,
+                    reconnectionAttempts: 5,
+                    reconnectionDelay: 1000
+                });
+
+                socket.on('connect', () => {
+                    console.log('Socket.IO connected successfully');
+                    socket.emit('join_dashboard', { group: '{{ user_group }}' });
+                });
+
+                socket.on('disconnect', (reason) => {
+                    console.log('Socket.IO disconnected:', reason);
+                });
+
+                socket.on('connect_error', (error) => {
+                    console.error('Socket.IO connection error:', error);
+                    // Fallback to polling if WebSockets fail
+                    if (socket.io.opts.transports.includes('websocket')) {
+                        console.log('Falling back to polling...');
+                        socket.io.opts.transports = ['polling'];
+                    }
+                });
+
+                socket.on('data_updated', (data) => {
+                    console.log('Data updated received:', data);
+                    if (data.group === '{{ user_group }}' || data.group === 'Global') {
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    }
+                });
+
+                return socket;
+            } catch (error) {
+                console.error('Failed to initialize Socket.IO:', error);
+                startPollingFallback();
+                return null;
+            }
+        }
+
+        // Rest of your existing code remains the same...
         // Close dropdowns when clicking outside
         document.addEventListener('click', function(event) {
             if (!event.target.matches('.dashboard-badge')) {
@@ -618,8 +683,6 @@
                             </div>
                         </div>
                     </div>
-                    
-
                 `;
                 return;
             }
@@ -677,17 +740,6 @@
 
             html += `</div>`; // Close team-section
 
-            // Current Total - Try to find current value in breakdown data
-            let totalCurrent = 290; // Default fallback
-            const currentItem = breakdown.find(d => d.Current) || breakdown.find(d => d.Team === 'TOTAL CURRENT');
-            if (currentItem) {
-                totalCurrent = currentItem.Current || currentItem.Value || 290;
-            }
-
-            html += `
-                
-            `;
-
             breakdownData.innerHTML = html;
         }
 
@@ -722,25 +774,11 @@
         // Setup file input change listener
         breakdownFileInput.addEventListener('change', handleBreakdownUpload);
 
-        // Socket.IO for real-time updates
-        if (typeof io !== 'undefined') {
-            const socket = io();
-
-            socket.on('connect', () => {
-                console.log('Socket.IO connected');
-                socket.emit('join_dashboard', { group: '{{ user_group }}' });
-            });
-
-            socket.on('data_updated', (data) => {
-                console.log('Data updated received:', data);
-                if (data.group === '{{ user_group }}' || data.group === 'Global') {
-                    window.location.reload();
-                }
-            });
-        }
-
         // Check if we should show breakdown modal on page load (for Global users after upload)
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Socket.IO connection
+            initializeSocket();
+            
             const hasBreakdownSuccess = document.querySelector('.flash-message.bg-green-50') !== null;
             const isGlobalUser = '{{ user_group }}' === 'Global';
             
@@ -753,4 +791,5 @@
         });
     </script>
 </body>
+
 </html>
