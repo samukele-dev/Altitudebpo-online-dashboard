@@ -10,13 +10,11 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_super_secret_key') 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# SocketIO configuration - use threading instead of eventlet
+# SocketIO configuration
 socketio = SocketIO(
     app, 
     cors_allowed_origins="*",
-    async_mode='threading',  # Use threading instead of eventlet
-    logger=True,
-    engineio_logger=True
+    async_mode='threading'
 )
 
 # Simple User/Group Management
@@ -435,15 +433,6 @@ def on_join_dashboard(data):
         print(f"Client {request.sid} joined room: {room_name}")
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
-    
-    print(f"Starting server on port {port} with debug={debug}")
-    
-    socketio.run(
-        app, 
-        host='0.0.0.0', 
-        port=port, 
-        debug=debug,
-        allow_unsafe_werkzeug=True
-    )
+    port = int(os.environ.get('PORT', 10000))
+    print(f"Starting server on port {port}")
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
