@@ -428,368 +428,387 @@
         {% endif %}
     </div>
 
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script>
-        // Global variables
-        let breakdownModalTimer = null;
-        const BREAKDOWN_MODAL_DURATION = 3.5 * 60 * 1000; // 3.5 minutes in milliseconds (03:30)
-        let socket = null;
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    // Global variables
+    let breakdownModalTimer = null;
+    const BREAKDOWN_MODAL_DURATION = 3.5 * 60 * 1000; // 3.5 minutes in milliseconds (03:30)
+    let socket = null;
 
-        // Elements
-        const breakdownModal = document.getElementById('breakdown-modal');
-        const closeBreakdownModalBtn = document.getElementById('close-breakdown-modal-btn');
-        const countdownDisplay = document.getElementById('countdown-display');
-        const breakdownData = document.getElementById('breakdown-data');
-        const breakdownFileInput = document.getElementById('breakdown-file-upload'); // FIXED LINE
+    // Elements
+    const breakdownModal = document.getElementById('breakdown-modal');
+    const closeBreakdownModalBtn = document.getElementById('close-breakdown-modal-btn');
+    const countdownDisplay = document.getElementById('countdown-display');
+    const breakdownData = document.getElementById('breakdown-data');
+    const breakdownFileInput = document.getElementById('breakdown-file-upload');
 
-        // Enhanced Socket.IO connection with fallbacks  
-        function initializeSocket() {  
-            try {
-                socket = io({
-                    transports: ['websocket', 'polling'],
-                    upgrade: true,
-                    rememberUpgrade: true,
-                    timeout: 10000,
-                    reconnection: true,
-                    reconnectionAttempts: 5,
-                    reconnectionDelay: 1000
-                });
+    // Enhanced Socket.IO connection with fallbacks  
+    function initializeSocket() {  
+        try {
+            socket = io({
+                transports: ['websocket', 'polling'],
+                upgrade: true,
+                rememberUpgrade: true,
+                timeout: 10000,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000
+            });
 
-                socket.on('connect', () => {
-                    console.log('Socket.IO connected successfully');
-                    socket.emit('join_dashboard', { group: '{{ user_group }}' });
-                });
+            socket.on('connect', () => {
+                console.log('Socket.IO connected successfully');
+                socket.emit('join_dashboard', { group: '{{ user_group }}' });
+                console.log('✅ Real-time updates enabled');
+            });
 
-                socket.on('disconnect', (reason) => {
-                    console.log('Socket.IO disconnected:', reason);
-                });
+            socket.on('disconnect', (reason) => {
+                console.log('Socket.IO disconnected:', reason);
+                console.log('❌ Real-time updates disabled');
+            });
 
-                socket.on('connect_error', (error) => {
-                    console.error('Socket.IO connection error:', error);
-                    // Fallback to polling if WebSockets fail
-                    if (socket.io.opts.transports.includes('websocket')) {
-                        console.log('Falling back to polling...');
-                        socket.io.opts.transports = ['polling'];
-                    }
-                });
+            socket.on('reconnect', (attemptNumber) => {
+                console.log('✅ Socket.IO reconnected after', attemptNumber, 'attempts');
+            });
 
-                socket.on('data_updated', (data) => {
-                    console.log('Data updated received:', data);
-                    if (data.group === '{{ user_group }}' || data.group === 'Global') {
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 500);
-                    }
-                });
-
-                return socket;
-            } catch (error) {
-                console.error('Failed to initialize Socket.IO:', error);
-                startPollingFallback();
-                return null;
-            }
-        }
-
-        // Rest of your existing code remains the same...
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', function(event) {
-            if (!event.target.matches('.dashboard-badge')) {
-                const dropdowns = document.getElementsByClassName('dashboard-dropdown-content');
-                for (let i = 0; i < dropdowns.length; i++) {
-                    dropdowns[i].classList.remove('show');
+            socket.on('connect_error', (error) => {
+                console.error('Socket.IO connection error:', error);
+                // Fallback to polling if WebSockets fail
+                if (socket.io.opts.transports.includes('websocket')) {
+                    console.log('Falling back to polling...');
+                    socket.io.opts.transports = ['polling'];
                 }
-            }
-        });
+            });
 
-        function toggleDashboardDropdown(teamName) {
-            const dropdownId = 'dropdown-' + teamName.replace(/ /g, '-');
-            const dropdown = document.getElementById(dropdownId);
-            
-            // Close all other dropdowns
-            const allDropdowns = document.getElementsByClassName('dashboard-dropdown-content');
-            for (let i = 0; i < allDropdowns.length; i++) {
-                if (allDropdowns[i].id !== dropdownId) {
-                    allDropdowns[i].classList.remove('show');
+            socket.on('data_updated', (data) => {
+                console.log('Data updated received:', data);
+                if (data.group === '{{ user_group }}' || data.group === 'Global') {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
                 }
-            }
-            
-            // Toggle current dropdown
-            dropdown.classList.toggle('show');
-        }
+            });
 
-        function assignDashboard(teamName, dashboard) {
-            console.log(`Assigning team ${teamName} to ${dashboard}`);
-            
-            // Close dropdown
-            const dropdownId = 'dropdown-' + teamName.replace(/ /g, '-');
-            document.getElementById(dropdownId).classList.remove('show');
-            
-            // Send assignment to server
-            fetch('{{ url_for("set_dashboard_assignment") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    team_name: teamName,
-                    dashboard: dashboard
+            return socket;
+        } catch (error) {
+            console.error('Failed to initialize Socket.IO:', error);
+            startPollingFallback();
+            return null;
+        }
+    }
+
+    // Fallback polling if WebSockets fail
+    function startPollingFallback() {
+        console.log('Starting fallback polling...');
+        setInterval(() => {
+            fetch('/check_updates')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Polling check:', data);
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Update the badge visually
-                    const badge = document.querySelector(`#dropdown-${teamName.replace(/ /g, '-')}`).previousElementSibling;
-                    badge.textContent = dashboard;
-                    badge.className = 'dashboard-badge ' + 
-                        (dashboard === 'Global' ? 'badge-global' : 
-                         dashboard === 'Floor 1' ? 'badge-floor1' : 'badge-floor2');
-                    badge.innerHTML = dashboard + ' <i class="fas fa-chevron-down ml-1 text-xs"></i>';
-                    
-                    console.log(data.message);
-                } else {
-                    console.error('Error:', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error assigning dashboard:', error);
-            });
-        }
+                .catch(error => console.error('Polling error:', error));
+        }, 30000); // Check every 30 seconds
+    }
 
-        /**
-         * Handle breakdown file upload and show popup modal
-         */
-        function handleBreakdownUpload() {
-            const file = breakdownFileInput.files[0];
-            if (!file) return;
-
-            // Show the breakdown modal immediately
-            showBreakdownModal();
-            
-            // Create FormData and submit via fetch instead of form submission
-            const formData = new FormData();
-            formData.append('breakdown_file', file);
-            
-            // Add target floors for Global users
-            {% if user_group == 'Global' %}
-            formData.append('breakdown_target_floors', 'Global');
-            formData.append('breakdown_target_floors', 'Floor 1');
-            formData.append('breakdown_target_floors', 'Floor 2');
-            {% endif %}
-
-            fetch('{{ url_for("upload_breakdown_file") }}', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.redirected) {
-                    // The server is redirecting, which means the upload was successful
-                    // We'll let the page reload naturally to show the flash message
-                    console.log('Upload successful, page will reload');
-                } else {
-                    return response.text();
-                }
-            })
-            .catch(error => {
-                console.error('Upload error:', error);
-            });
-        }
-
-        /**
-         * Show the breakdown modal with countdown timer
-         */
-        function showBreakdownModal() {
-            console.log('🔄 Showing breakdown modal');
-            
-            // Clear any existing timer
-            if (breakdownModalTimer) {
-                clearInterval(breakdownModalTimer);
+    // Rest of your existing code remains exactly the same...
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!event.target.matches('.dashboard-badge')) {
+            const dropdowns = document.getElementsByClassName('dashboard-dropdown-content');
+            for (let i = 0; i < dropdowns.length; i++) {
+                dropdowns[i].classList.remove('show');
             }
+        }
+    });
 
-            // Show the modal
-            breakdownModal.classList.add('open');
-            
-            // Fetch and display breakdown data
-            fetchBreakdownData();
-            
-            let timeLeft = BREAKDOWN_MODAL_DURATION / 1000; // Convert to seconds
-            
-            // Update countdown display immediately
+    function toggleDashboardDropdown(teamName) {
+        const dropdownId = 'dropdown-' + teamName.replace(/ /g, '-');
+        const dropdown = document.getElementById(dropdownId);
+        
+        // Close all other dropdowns
+        const allDropdowns = document.getElementsByClassName('dashboard-dropdown-content');
+        for (let i = 0; i < allDropdowns.length; i++) {
+            if (allDropdowns[i].id !== dropdownId) {
+                allDropdowns[i].classList.remove('show');
+            }
+        }
+        
+        // Toggle current dropdown
+        dropdown.classList.toggle('show');
+    }
+
+    function assignDashboard(teamName, dashboard) {
+        console.log(`Assigning team ${teamName} to ${dashboard}`);
+        
+        // Close dropdown
+        const dropdownId = 'dropdown-' + teamName.replace(/ /g, '-');
+        document.getElementById(dropdownId).classList.remove('show');
+        
+        // Send assignment to server
+        fetch('{{ url_for("set_dashboard_assignment") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                team_name: teamName,
+                dashboard: dashboard
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update the badge visually
+                const badge = document.querySelector(`#dropdown-${teamName.replace(/ /g, '-')}`).previousElementSibling;
+                badge.textContent = dashboard;
+                badge.className = 'dashboard-badge ' + 
+                    (dashboard === 'Global' ? 'badge-global' : 
+                     dashboard === 'Floor 1' ? 'badge-floor1' : 'badge-floor2');
+                badge.innerHTML = dashboard + ' <i class="fas fa-chevron-down ml-1 text-xs"></i>';
+                
+                console.log(data.message);
+            } else {
+                console.error('Error:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error assigning dashboard:', error);
+        });
+    }
+
+    /**
+     * Handle breakdown file upload and show popup modal
+     */
+    function handleBreakdownUpload() {
+        const file = breakdownFileInput.files[0];
+        if (!file) return;
+
+        // Show the breakdown modal immediately
+        showBreakdownModal();
+        
+        // Create FormData and submit via fetch instead of form submission
+        const formData = new FormData();
+        formData.append('breakdown_file', file);
+        
+        // Add target floors for Global users
+        {% if user_group == 'Global' %}
+        formData.append('breakdown_target_floors', 'Global');
+        formData.append('breakdown_target_floors', 'Floor 1');
+        formData.append('breakdown_target_floors', 'Floor 2');
+        {% endif %}
+
+        fetch('{{ url_for("upload_breakdown_file") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.redirected) {
+                // The server is redirecting, which means the upload was successful
+                // We'll let the page reload naturally to show the flash message
+                console.log('Upload successful, page will reload');
+            } else {
+                return response.text();
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+        });
+    }
+
+    /**
+     * Show the breakdown modal with countdown timer
+     */
+    function showBreakdownModal() {
+        console.log('🔄 Showing breakdown modal');
+        
+        // Clear any existing timer
+        if (breakdownModalTimer) {
+            clearInterval(breakdownModalTimer);
+        }
+
+        // Show the modal
+        breakdownModal.classList.add('open');
+        
+        // Fetch and display breakdown data
+        fetchBreakdownData();
+        
+        let timeLeft = BREAKDOWN_MODAL_DURATION / 1000; // Convert to seconds
+        
+        // Update countdown display immediately
+        updateCountdownDisplay(timeLeft);
+        
+        // Start countdown timer
+        breakdownModalTimer = setInterval(() => {
+            timeLeft--;
             updateCountdownDisplay(timeLeft);
             
-            // Start countdown timer
-            breakdownModalTimer = setInterval(() => {
-                timeLeft--;
-                updateCountdownDisplay(timeLeft);
-                
-                if (timeLeft <= 0) {
-                    closeBreakdownModal();
+            if (timeLeft <= 0) {
+                closeBreakdownModal();
+            }
+        }, 1000);
+    }
+
+    /**
+     * Update the countdown display
+     */
+    function updateCountdownDisplay(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        const display = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        countdownDisplay.textContent = display;
+        
+        // Add pulsing animation when under 1 minute
+        if (seconds <= 60) {
+            countdownDisplay.classList.add('animate-countdown-pulse');
+        } else {
+            countdownDisplay.classList.remove('animate-countdown-pulse');
+        }
+    }
+
+    /**
+     * Fetch breakdown data from the server
+     */
+    function fetchBreakdownData() {
+        fetch('{{ url_for("get_sales_breakdown") }}')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            }, 1000);
-        }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Received breakdown data:', data);
+                renderBreakdownData(data.breakdown);
+            })
+            .catch(error => {
+                console.error('Error fetching breakdown data:', error);
+                renderBreakdownData(null);
+            });
+    }
 
-        /**
-         * Update the countdown display
-         */
-        function updateCountdownDisplay(seconds) {
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = seconds % 60;
-            const display = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-            countdownDisplay.textContent = display;
-            
-            // Add pulsing animation when under 1 minute
-            if (seconds <= 60) {
-                countdownDisplay.classList.add('animate-countdown-pulse');
-            } else {
-                countdownDisplay.classList.remove('animate-countdown-pulse');
-            }
-        }
-
-        /**
-         * Fetch breakdown data from the server
-         */
-        function fetchBreakdownData() {
-            fetch('{{ url_for("get_sales_breakdown") }}')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Received breakdown data:', data);
-                    renderBreakdownData(data.breakdown);
-                })
-                .catch(error => {
-                    console.error('Error fetching breakdown data:', error);
-                    renderBreakdownData(null);
-                });
-        }
-
-        /**
-         * Render breakdown data in the modal - Updated to match image structure
-         */
-        function renderBreakdownData(breakdown) {
-            if (!breakdown || breakdown.length === 0) {
-                breakdownData.innerHTML = `
-                    <div class="team-section">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4"></h3>
-                        
-                        <!-- No data message -->
-                        <div class="text-center py-8">
-                            <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
-                            <div class="countdown-timer text-sm inline-block">
-                                Closing in: <span>03:30</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = '';
-            
-            // Team Section
-            html += `
+    /**
+     * Render breakdown data in the modal - Updated to match image structure
+     */
+    function renderBreakdownData(breakdown) {
+        if (!breakdown || breakdown.length === 0) {
+            breakdownData.innerHTML = `
                 <div class="team-section">
                     <h3 class="text-xl font-bold text-gray-800 mb-4"></h3>
-            `;
-
-            // Breakdown Categories
-            const categories = ['Vodacom Funeral', 'Media', 'Upsell'];
-            let hasCategories = false;
-            
-            categories.forEach(category => {
-                const item = breakdown.find(d => d.Category === category || d.Team === category);
-                if (item) {
-                    hasCategories = true;
-                    const value = item.Value || item.Target || item.Current || 0;
-                    html += `
-                        <div class="breakdown-item flex justify-between items-center p-3 bg-gray-50 rounded-lg mb-3">
-                            <span class="font-semibold text-gray-700">${category}</span>
-                            <span class="text-lg font-bold text-primary-accent">${formatNumber(value)}</span>
-                        </div>
-                    `;
-                }
-            });
-
-            if (!hasCategories) {
-                html += `
+                    
+                    <!-- No data message -->
                     <div class="text-center py-8">
                         <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
                         <div class="countdown-timer text-sm inline-block">
                             Closing in: <span>03:30</span>
                         </div>
                     </div>
-                `;
-            }
+                </div>
+            `;
+            return;
+        }
 
-            // Total Sales
-            const totalSalesItem = breakdown.find(d => d.Category === 'Total Sales' || d.Team === 'Total Sales');
-            if (totalSalesItem) {
-                const totalSales = totalSalesItem.Value || totalSalesItem.Target || totalSalesItem.Current || 0;
+        let html = '';
+        
+        // Team Section
+        html += `
+            <div class="team-section">
+                <h3 class="text-xl font-bold text-gray-800 mb-4"></h3>
+        `;
+
+        // Breakdown Categories
+        const categories = ['Vodacom Funeral', 'Media', 'Upsell'];
+        let hasCategories = false;
+        
+        categories.forEach(category => {
+            const item = breakdown.find(d => d.Category === category || d.Team === category);
+            if (item) {
+                hasCategories = true;
+                const value = item.Value || item.Target || item.Current || 0;
                 html += `
-                    <div class="total-sales-section mt-6 pt-4 border-t border-gray-200">
-                        <div class="flex justify-between items-center">
-                            <span class="text-xl font-bold text-gray-800">Total Sales</span>
-                            <span class="text-2xl font-extrabold text-success-icon">${formatNumber(totalSales)}</span>
-                        </div>
+                    <div class="breakdown-item flex justify-between items-center p-3 bg-gray-50 rounded-lg mb-3">
+                        <span class="font-semibold text-gray-700">${category}</span>
+                        <span class="text-lg font-bold text-primary-accent">${formatNumber(value)}</span>
                     </div>
                 `;
             }
-
-            html += `</div>`; // Close team-section
-
-            breakdownData.innerHTML = html;
-        }
-
-        /**
-         * Format numbers with commas
-         */
-        function formatNumber(num) {
-            const numericValue = typeof num === 'string' ? parseFloat(num) : num;
-            if (isNaN(numericValue)) return '0';
-            return numericValue.toLocaleString('en-US', { maximumFractionDigits: 0 });
-        }
-
-        /**
-         * Close the breakdown modal
-         */
-        function closeBreakdownModal() {
-            if (breakdownModalTimer) {
-                clearInterval(breakdownModalTimer);
-                breakdownModalTimer = null;
-            }
-            breakdownModal.classList.remove('open');
-        }
-
-        // Event listeners for breakdown modal
-        closeBreakdownModalBtn.addEventListener('click', closeBreakdownModal);
-        breakdownModal.addEventListener('click', (e) => {
-            if (e.target.id === 'breakdown-modal') {
-                closeBreakdownModal();
-            }
         });
 
-        // Setup file input change listener
-        breakdownFileInput.addEventListener('change', handleBreakdownUpload);
+        if (!hasCategories) {
+            html += `
+                <div class="text-center py-8">
+                    <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
+                    <div class="countdown-timer text-sm inline-block">
+                        Closing in: <span>03:30</span>
+                    </div>
+                </div>
+            `;
+        }
 
-        // Check if we should show breakdown modal on page load (for Global users after upload)
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize Socket.IO connection
-            initializeSocket();
-            
-            const hasBreakdownSuccess = document.querySelector('.flash-message.bg-green-50') !== null;
-            const isGlobalUser = '{{ user_group }}' === 'Global';
-            
-            if (hasBreakdownSuccess) {
-                // Small delay to ensure page is fully loaded
-                setTimeout(() => {
-                    showBreakdownModal();
-                }, 1000);
-            }
-        });
-    </script>
+        // Total Sales
+        const totalSalesItem = breakdown.find(d => d.Category === 'Total Sales' || d.Team === 'Total Sales');
+        if (totalSalesItem) {
+            const totalSales = totalSalesItem.Value || totalSalesItem.Target || totalSalesItem.Current || 0;
+            html += `
+                <div class="total-sales-section mt-6 pt-4 border-t border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xl font-bold text-gray-800">Total Sales</span>
+                        <span class="text-2xl font-extrabold text-success-icon">${formatNumber(totalSales)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `</div>`; // Close team-section
+
+        breakdownData.innerHTML = html;
+    }
+
+    /**
+     * Format numbers with commas
+     */
+    function formatNumber(num) {
+        const numericValue = typeof num === 'string' ? parseFloat(num) : num;
+        if (isNaN(numericValue)) return '0';
+        return numericValue.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    /**
+     * Close the breakdown modal
+     */
+    function closeBreakdownModal() {
+        if (breakdownModalTimer) {
+            clearInterval(breakdownModalTimer);
+            breakdownModalTimer = null;
+        }
+        breakdownModal.classList.remove('open');
+    }
+
+    // Event listeners for breakdown modal
+    closeBreakdownModalBtn.addEventListener('click', closeBreakdownModal);
+    breakdownModal.addEventListener('click', (e) => {
+        if (e.target.id === 'breakdown-modal') {
+            closeBreakdownModal();
+        }
+    });
+
+    // Setup file input change listener
+    breakdownFileInput.addEventListener('change', handleBreakdownUpload);
+
+    // Check if we should show breakdown modal on page load (for Global users after upload)
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Socket.IO connection
+        initializeSocket();
+        
+        const hasBreakdownSuccess = document.querySelector('.flash-message.bg-green-50') !== null;
+        const isGlobalUser = '{{ user_group }}' === 'Global';
+        
+        if (hasBreakdownSuccess) {
+            // Small delay to ensure page is fully loaded
+            setTimeout(() => {
+                showBreakdownModal();
+            }, 1000);
+        }
+    });
+</script>
 </body>
 
 </html>
