@@ -1,5 +1,4 @@
 import pandas as pd
-import json
 import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_socketio import SocketIO, emit, join_room
@@ -24,11 +23,13 @@ USERS = {
     'floor2_manager': {'password': 'f2pass2', 'group': 'Floor 2'}
 }
 DASHBOARD_GROUPS = ['Global', 'Floor 1', 'Floor 2']
+FLOORS = ['Floor 1', 'Floor 2']
 
-# --- Global Data Store ---
-ALL_RAW_TEAMS = [] 
-TEAM_ALLOCATIONS = {} 
-SALES_BREAKDOWN_DATA = [] 
+# --- Per-Floor Data Store ---
+# Each floor's uploads are kept fully isolated from the other floor.
+# Global has no data of its own - it's a read-only combined view of both floors.
+TEAM_STATS_BY_FLOOR = {floor: [] for floor in FLOORS}
+BREAKDOWN_BY_FLOOR = {floor: [] for floor in FLOORS}
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
@@ -95,7 +96,6 @@ def process_team_data_from_df(df):
     
 
 def process_breakdown_data(df):
-    global SALES_BREAKDOWN_DATA
     breakdown_data = []
     
     # Look for the breakdown table structure in the Excel file
@@ -125,9 +125,9 @@ def process_breakdown_data(df):
     # If we didn't find the table structure, try alternative parsing
     if not breakdown_data:
         breakdown_data = parse_alternative_breakdown_structure(df)
-    
-    SALES_BREAKDOWN_DATA = breakdown_data
+
     print(f"DEBUG: Processed breakdown data: {breakdown_data}")
+    return breakdown_data
 
 def parse_alternative_breakdown_structure(df):
     """Alternative parsing for different breakdown file structures"""
@@ -197,22 +197,20 @@ def find_adjacent_numeric_value(df_str, row_idx, col_idx):
     
     return None
 
-def get_filtered_stats(user_group):
+def get_stats_for_group(user_group):
     if user_group == 'Global':
-        return ALL_RAW_TEAMS
-    
-    filtered_stats = []
-    for team_stat in ALL_RAW_TEAMS:
-        team_name = team_stat.get('Team')
-        allocation = TEAM_ALLOCATIONS.get(team_name, 'Global')
-        
-        if allocation == user_group or allocation == 'Global':
-            filtered_stats.append(team_stat)
-            
-    return filtered_stats
+        return TEAM_STATS_BY_FLOOR['Floor 1'] + TEAM_STATS_BY_FLOOR['Floor 2']
+    return TEAM_STATS_BY_FLOOR.get(user_group, [])
 
-def get_all_stats():
-    return ALL_RAW_TEAMS
+def get_breakdown_for_group(user_group):
+    if user_group == 'Global':
+        combined = {}
+        for floor in FLOORS:
+            for item in BREAKDOWN_BY_FLOOR[floor]:
+                category = item['Category']
+                combined[category] = combined.get(category, 0) + item['Value']
+        return [{'Category': category, 'Value': value} for category, value in combined.items()]
+    return BREAKDOWN_BY_FLOOR.get(user_group, [])
 
 # --- Routes ---
 @app.route('/')
@@ -247,90 +245,42 @@ def dashboard():
     if 'logged_in' not in session:
         flash('Please log in to access this page.', 'warning')
         return redirect(url_for('login'))
-    
-    user_group = session.get('user_group')
-    
-    # Get filtered stats for the table
-    filtered_stats = get_filtered_stats(user_group)
-    
-    # Calculate GLOBAL Totals (for KPI cards)
-    all_stats = get_all_stats()
-    totals = {'Total Target': 0, 'Total Current': 0, 'Total Shortfall': 0}
-    
-    if all_stats:
-        df_all = pd.DataFrame(all_stats)
-        for col in ['Target', 'Current', 'Shortfall']:
-            if col in df_all.columns:
-                totals[f'Total {col}'] = pd.to_numeric(df_all[col], errors='coerce').sum().astype(int)
-    
-    # Prepare data for the Dashboard Assignment (Global Admin only)
-    allocation_data = {
-        team_stat['Team']: TEAM_ALLOCATIONS.get(team_stat['Team'], 'Global')
-        for team_stat in ALL_RAW_TEAMS
-    }
 
-    return render_template('dashboard.html', 
-                          stats=filtered_stats, 
-                          totals=totals, 
+    user_group = session.get('user_group')
+
+    # Stats are isolated per floor. Global is a read-only combined view of both floors.
+    stats = get_stats_for_group(user_group)
+
+    totals = {'Total Target': 0, 'Total Current': 0, 'Total Shortfall': 0}
+    if stats:
+        df_stats = pd.DataFrame(stats)
+        for col in ['Target', 'Current', 'Shortfall']:
+            if col in df_stats.columns:
+                totals[f'Total {col}'] = pd.to_numeric(df_stats[col], errors='coerce').sum().astype(int)
+
+    return render_template('dashboard.html',
+                          stats=stats,
+                          totals=totals,
                           user_group=user_group,
-                          allocation_data=allocation_data,
                           DASHBOARD_GROUPS=DASHBOARD_GROUPS)
 
-@app.route('/set_dashboard_assignment', methods=['POST'])
-def set_dashboard_assignment():
-    global TEAM_ALLOCATIONS
-    
-    if session.get('user_group') != 'Global':
-        return json.dumps({"status": "error", "message": "Unauthorized"}), 403
-    
-    try:
-        data = request.get_json()
-        team_name = data.get('team_name')
-        dashboard = data.get('dashboard')
-        
-        if team_name and dashboard in ['Global', 'Floor 1', 'Floor 2']:
-            old_dashboard = TEAM_ALLOCATIONS.get(team_name, 'Global')
-            TEAM_ALLOCATIONS[team_name] = dashboard
-            
-            # Notify affected rooms to fetch new, filtered data
-            affected_floors = set()
-            if old_dashboard != dashboard:
-                if old_dashboard != 'Global':
-                    affected_floors.add(old_dashboard)
-                affected_floors.add(dashboard)
-            
-            # Ensure Global Admin sees the change immediately too
-            if 'Global' not in affected_floors:
-                affected_floors.add('Global')
-            
-            # Notify affected rooms
-            for floor in affected_floors:
-                socketio.emit('data_updated', 
-                            {'type': 'dashboard_assignment', 'group': floor}, 
-                            room=floor)
-            
-            return json.dumps({"status": "success", "message": f"Team {team_name} assigned to {dashboard}"}), 200
-        else:
-            return json.dumps({"status": "error", "message": "Invalid data"}), 400
+@app.route('/upload_team_file', methods=['POST'])
+def upload_team_file():
+    if 'logged_in' not in session:
+        flash('Please log in to access this page.', 'warning')
+        return redirect(url_for('login'))
 
-    except Exception as e:
-        print(f"Error processing dashboard assignment: {e}")
-        return json.dumps({"status": "error", "message": f"Server error: {str(e)}"}), 500
-
-@app.route('/admin_upload_team_file', methods=['POST'])
-def admin_upload_team_file():
-    global ALL_RAW_TEAMS, TEAM_ALLOCATIONS
-
-    if session.get('user_group') != 'Global':
-        flash('Access denied.', 'danger')
+    user_group = session.get('user_group')
+    if user_group not in FLOORS:
+        flash('Only Floor 1 and Floor 2 accounts can upload Team Stats.', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     if 'file' not in request.files:
         flash('No file part', 'danger')
         return redirect(url_for('dashboard'))
-        
+
     file = request.files['file']
-    
+
     if file.filename == '' or not allowed_file(file.filename):
         flash('Invalid file selected.', 'danger')
         return redirect(url_for('dashboard'))
@@ -343,22 +293,16 @@ def admin_upload_team_file():
             flash('Error: Could not process team data from the file format.', 'danger')
             return redirect(url_for('dashboard'))
 
-        # Update the raw data source
-        ALL_RAW_TEAMS = raw_stats
+        TEAM_STATS_BY_FLOOR[user_group] = raw_stats
 
-        # Update TEAM_ALLOCATIONS for new teams
-        for team_stat in ALL_RAW_TEAMS:
-            team_name = team_stat.get('Team')
-            if team_name and team_name not in TEAM_ALLOCATIONS:
-                TEAM_ALLOCATIONS[team_name] = 'Global'
+        flash(f'Team Stats for {user_group} successfully loaded!', 'success')
 
-        flash('Team Stats successfully loaded! You can now assign teams to specific floors.', 'success')
-        
-        # Broadcast to all clients
-        socketio.emit('data_updated', {'type': 'team_stats', 'group': 'Global'}) 
+        # Only notify this floor's room and Global's combined view - the other floor is untouched
+        socketio.emit('data_updated', {'type': 'team_stats', 'group': user_group}, room=user_group)
+        socketio.emit('data_updated', {'type': 'team_stats', 'group': user_group}, room='Global')
 
         return redirect(url_for('dashboard'))
-        
+
     except Exception as e:
         flash(f'Error processing Team file: {e}', 'danger')
         return redirect(url_for('dashboard'))
@@ -368,36 +312,33 @@ def upload_breakdown_file():
     if 'logged_in' not in session:
         flash('Please log in to access this page.', 'warning')
         return redirect(url_for('login'))
-    
+
     user_group = session.get('user_group')
-    
-    target_floors = []
-    if user_group == 'Global':
-        target_floors_list = request.form.getlist('breakdown_target_floors')
-        target_floors = [f for f in target_floors_list if f in DASHBOARD_GROUPS]
-    else:
-        target_floors = [user_group]
-    
+    if user_group not in FLOORS:
+        flash('Only Floor 1 and Floor 2 accounts can upload a Sales Breakdown.', 'danger')
+        return redirect(url_for('dashboard'))
+
     if 'breakdown_file' not in request.files:
         flash('No breakdown file part', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     file = request.files['breakdown_file']
-    
+
     if file.filename == '' or not allowed_file(file.filename):
         flash('Invalid breakdown file selected.', 'danger')
         return redirect(url_for('dashboard'))
-        
+
     try:
         df = pd.read_excel(file, header=None)
-        process_breakdown_data(df)
-        
-        flash('Sales Breakdown file successfully uploaded and data loaded!', 'success')
-        
-        for floor in target_floors:
-            socketio.emit('data_updated', {'type': 'breakdown_stats'}, room=floor)
-        
-        return redirect(url_for('dashboard', show_breakdown='true')) 
+        BREAKDOWN_BY_FLOOR[user_group] = process_breakdown_data(df)
+
+        flash(f'Sales Breakdown for {user_group} successfully uploaded and data loaded!', 'success')
+
+        # Only notify this floor's room and Global's combined view - the other floor is untouched
+        socketio.emit('data_updated', {'type': 'breakdown_stats'}, room=user_group)
+        socketio.emit('data_updated', {'type': 'breakdown_stats'}, room='Global')
+
+        return redirect(url_for('dashboard', show_breakdown='true'))
     except Exception as e:
         flash(f'Error processing Breakdown file: {e}', 'danger')
         return redirect(url_for('dashboard'))
@@ -406,8 +347,9 @@ def upload_breakdown_file():
 def get_sales_breakdown():
     if 'logged_in' not in session:
         return {'error': 'Not logged in'}, 401
-    
-    return {'breakdown': SALES_BREAKDOWN_DATA}
+
+    user_group = session.get('user_group')
+    return {'breakdown': get_breakdown_for_group(user_group)}
 
 # Fallback for SocketIO issues
 @app.route('/check_updates')

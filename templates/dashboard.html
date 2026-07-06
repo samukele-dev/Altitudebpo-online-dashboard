@@ -45,72 +45,6 @@
             overflow-x: hidden;
         }
 
-        .dashboard-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-
-        .dashboard-dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: white;
-            min-width: 120px;
-            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-            border-radius: 0.5rem;
-            overflow: hidden;
-        }
-
-        .dashboard-dropdown-content.show {
-            display: block;
-        }
-
-        .dashboard-option {
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-            border-bottom: 1px solid #f1f1f1;
-            transition: background-color 0.2s;
-        }
-
-        .dashboard-option:hover {
-            background-color: #f8f9fa;
-        }
-
-        .dashboard-option:last-child {
-            border-bottom: none;
-        }
-
-        .dashboard-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 1rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .dashboard-badge:hover {
-            transform: scale(1.05);
-        }
-
-        .badge-global {
-            background-color: #E3F2FD;
-            color: #1976D2;
-            border: 1px solid #90CAF9;
-        }
-
-        .badge-floor1 {
-            background-color: #E8F5E8;
-            color: #2E7D32;
-            border: 1px solid #A5D6A7;
-        }
-
-        .badge-floor2 {
-            background-color: #FFF3E0;
-            color: #EF6C00;
-            border: 1px solid #FFCC80;
-        }
-
         /* Breakdown Modal Styles */
         .breakdown-modal {
             position: fixed;
@@ -185,7 +119,7 @@
                 <h2 class="text-3xl font-extrabold text-primary-accent">Sales Breakdown</h2>
                 <div class="flex items-center space-x-4">
                     <div id="breakdown-countdown" class="countdown-timer text-sm">
-                        Closing in: <span id="countdown-display">03:30</span>
+                        Closing in: <span id="countdown-display">05:00</span>
                     </div>
                     <button id="close-breakdown-modal-btn" class="text-gray-500 hover:text-danger-icon">
                         <i class="fas fa-times text-2xl"></i>
@@ -201,7 +135,7 @@
                     <div class="text-center py-8">
                         <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
                         <div class="countdown-timer text-sm inline-block">
-                            Closing in: <span>03:30</span>
+                            Closing in: <span>05:00</span>
                         </div>
                     </div>
                 </div>
@@ -220,8 +154,8 @@
                 {{ user_group }} Dashboard
             </p>
             <div class="flex space-x-4 mt-4 md:mt-0">
-                {% if user_group == 'Global' %}
-                <form action="{{ url_for('admin_upload_team_file') }}" method="post" enctype="multipart/form-data"
+                {% if user_group in ['Floor 1', 'Floor 2'] %}
+                <form action="{{ url_for('upload_team_file') }}" method="post" enctype="multipart/form-data"
                     class="flex">
                     <label for="team-file-upload"
                         class="flex items-center text-white bg-primary-accent hover:bg-primary-accent/90 px-4 py-2 rounded-lg transition duration-200 shadow-md text-md cursor-pointer">
@@ -230,25 +164,16 @@
                     <input type="file" name="file" id="team-file-upload" required class="hidden"
                         onchange="this.form.submit()">
                 </form>
-                {% endif %}
 
                 <form action="{{ url_for('upload_breakdown_file') }}" method="post" enctype="multipart/form-data"
                     class="flex" id="breakdown-form">
-                    {% if user_group == 'Global' %}
-                    <div class="flex flex-col">
-                        <label for="breakdown-file-upload"
-                            class="flex items-center text-white bg-secondary-accent hover:bg-secondary-accent/90 px-4 py-2 rounded-lg transition duration-200 shadow-md text-md cursor-pointer">
-                            <i class="fas fa-chart-pie mr-2"></i> Breakdown
-                        </label>
-                    </div>
-                    {% else %}
                     <label for="breakdown-file-upload"
                         class="flex items-center text-white bg-secondary-accent hover:bg-secondary-accent/90 px-4 py-2 rounded-lg transition duration-200 shadow-md text-md cursor-pointer">
                         <i class="fas fa-chart-pie mr-2"></i> Breakdown
                     </label>
-                    {% endif %}
                     <input type="file" name="breakdown_file" id="breakdown-file-upload" required class="hidden">
                 </form>
+                {% endif %}
 
                 <a href="{{ url_for('logout') }}"
                     class="flex items-center text-light-text hover:bg-gray-100 border border-light-border px-4 py-2 rounded-lg transition duration-200 shadow-sm text-md">
@@ -345,9 +270,6 @@
                             <th class="p-3 text-left tracking-wider uppercase text-sm">Current</th>
                             <th class="p-3 text-left tracking-wider uppercase text-sm">Shortfall</th>
                             <th class="p-3 text-center tracking-wider uppercase text-sm">Status</th>
-                            {% if user_group == 'Global' %}
-                            <th class="p-3 text-center tracking-wider uppercase text-sm">Dashboard</th>
-                            {% endif %}
                         </tr>
                     </thead>
                     <tbody id="stats-table-body" class="divide-y divide-light-border bg-white">
@@ -376,36 +298,6 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            {% if user_group == 'Global' %}
-                            <td class="p-3 text-center">
-                                <div class="dashboard-dropdown">
-                                    {% set current_dashboard = allocation_data.get(row.Team, 'Global') %}
-                                    <div class="dashboard-badge 
-                                        {% if current_dashboard == 'Global' %} badge-global
-                                        {% elif current_dashboard == 'Floor 1' %} badge-floor1
-                                        {% else %} badge-floor2
-                                        {% endif %}" onclick="toggleDashboardDropdown('{{ row.Team }}')">
-                                        {{ current_dashboard }}
-                                        <i class="fas fa-chevron-down ml-1 text-xs"></i>
-                                    </div>
-                                    <div id="dropdown-{{ row.Team | replace(' ', '-') }}"
-                                        class="dashboard-dropdown-content">
-                                        <div class="dashboard-option"
-                                            onclick="assignDashboard('{{ row.Team }}', 'Global')">
-                                            <i class="fas fa-globe mr-2 text-blue-500"></i> Global
-                                        </div>
-                                        <div class="dashboard-option"
-                                            onclick="assignDashboard('{{ row.Team }}', 'Floor 1')">
-                                            <i class="fas fa-building mr-2 text-green-500"></i> Floor 1
-                                        </div>
-                                        <div class="dashboard-option"
-                                            onclick="assignDashboard('{{ row.Team }}', 'Floor 2')">
-                                            <i class="fas fa-building mr-2 text-orange-500"></i> Floor 2
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -418,11 +310,11 @@
                 <i class="fas fa-exclamation-circle mr-3 text-secondary-accent text-3xl"></i>
                 No call centre data uploaded yet for {{ user_group }}.
             </p>
-            {% if user_group == 'Global' %}
-            <a href="{{ url_for('admin_upload_team_file') }}"
-                class="inline-block bg-primary-accent hover:bg-primary-accent/90 text-white font-bold py-2 px-6 rounded-full transition duration-300 transform hover:scale-105 shadow-md">
+            {% if user_group in ['Floor 1', 'Floor 2'] %}
+            <label for="team-file-upload"
+                class="inline-block bg-primary-accent hover:bg-primary-accent/90 text-white font-bold py-2 px-6 rounded-full transition duration-300 transform hover:scale-105 shadow-md cursor-pointer">
                 <i class="fas fa-file-upload mr-2"></i> Upload Team Stats file now
-            </a>
+            </label>
             {% endif %}
         </div>
         {% endif %}
@@ -432,8 +324,9 @@
 <script>
     // Global variables
     let breakdownModalTimer = null;
-    const BREAKDOWN_MODAL_DURATION = 3.5 * 60 * 1000; // 3.5 minutes in milliseconds (03:30)
+    const BREAKDOWN_MODAL_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds (05:00)
     let socket = null;
+    let breakdownModalTimeout = null;
 
     // Elements
     const breakdownModal = document.getElementById('breakdown-modal');
@@ -488,6 +381,13 @@
                 }
             });
 
+            // Listen for breakdown modal trigger from server
+            socket.on('trigger_breakdown_modal', (data) => {
+                console.log('Received breakdown modal trigger from server');
+                // Schedule modal to show after 5 minutes
+                scheduleBreakdownModal();
+            });
+
             return socket;
         } catch (error) {
             console.error('Failed to initialize Socket.IO:', error);
@@ -509,92 +409,37 @@
         }, 30000); // Check every 30 seconds
     }
 
-    // Rest of your existing code remains exactly the same...
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(event) {
-        if (!event.target.matches('.dashboard-badge')) {
-            const dropdowns = document.getElementsByClassName('dashboard-dropdown-content');
-            for (let i = 0; i < dropdowns.length; i++) {
-                dropdowns[i].classList.remove('show');
-            }
-        }
-    });
-
-    function toggleDashboardDropdown(teamName) {
-        const dropdownId = 'dropdown-' + teamName.replace(/ /g, '-');
-        const dropdown = document.getElementById(dropdownId);
+    /**
+     * Schedule breakdown modal to appear after 5 minutes
+     */
+    function scheduleBreakdownModal() {
+        console.log('⏰ Scheduling breakdown modal to appear in 5 minutes');
         
-        // Close all other dropdowns
-        const allDropdowns = document.getElementsByClassName('dashboard-dropdown-content');
-        for (let i = 0; i < allDropdowns.length; i++) {
-            if (allDropdowns[i].id !== dropdownId) {
-                allDropdowns[i].classList.remove('show');
-            }
+        // Clear any existing timeout
+        if (breakdownModalTimeout) {
+            clearTimeout(breakdownModalTimeout);
         }
         
-        // Toggle current dropdown
-        dropdown.classList.toggle('show');
-    }
-
-    function assignDashboard(teamName, dashboard) {
-        console.log(`Assigning team ${teamName} to ${dashboard}`);
-        
-        // Close dropdown
-        const dropdownId = 'dropdown-' + teamName.replace(/ /g, '-');
-        document.getElementById(dropdownId).classList.remove('show');
-        
-        // Send assignment to server
-        fetch('{{ url_for("set_dashboard_assignment") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                team_name: teamName,
-                dashboard: dashboard
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Update the badge visually
-                const badge = document.querySelector(`#dropdown-${teamName.replace(/ /g, '-')}`).previousElementSibling;
-                badge.textContent = dashboard;
-                badge.className = 'dashboard-badge ' + 
-                    (dashboard === 'Global' ? 'badge-global' : 
-                     dashboard === 'Floor 1' ? 'badge-floor1' : 'badge-floor2');
-                badge.innerHTML = dashboard + ' <i class="fas fa-chevron-down ml-1 text-xs"></i>';
-                
-                console.log(data.message);
-            } else {
-                console.error('Error:', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error assigning dashboard:', error);
-        });
+        // Schedule modal to show after 5 minutes (300,000 milliseconds)
+        breakdownModalTimeout = setTimeout(() => {
+            console.log('🔄 5 minutes elapsed - showing breakdown modal');
+            showBreakdownModal();
+        }, 5 * 60 * 1000); // 5 minutes in milliseconds
     }
 
     /**
-     * Handle breakdown file upload and show popup modal
+     * Handle breakdown file upload and schedule popup modal
      */
     function handleBreakdownUpload() {
         const file = breakdownFileInput.files[0];
         if (!file) return;
 
-        // Show the breakdown modal immediately
-        showBreakdownModal();
-        
+        // Schedule modal after 5 minutes
+        scheduleBreakdownModal();
+
         // Create FormData and submit via fetch instead of form submission
         const formData = new FormData();
         formData.append('breakdown_file', file);
-        
-        // Add target floors for Global users
-        {% if user_group == 'Global' %}
-        formData.append('breakdown_target_floors', 'Global');
-        formData.append('breakdown_target_floors', 'Floor 1');
-        formData.append('breakdown_target_floors', 'Floor 2');
-        {% endif %}
 
         fetch('{{ url_for("upload_breakdown_file") }}', {
             method: 'POST',
@@ -698,7 +543,7 @@
                     <div class="text-center py-8">
                         <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
                         <div class="countdown-timer text-sm inline-block">
-                            Closing in: <span>03:30</span>
+                            Closing in: <span>05:00</span>
                         </div>
                     </div>
                 </div>
@@ -737,7 +582,7 @@
                 <div class="text-center py-8">
                     <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
                     <div class="countdown-timer text-sm inline-block">
-                        Closing in: <span>03:30</span>
+                        Closing in: <span>05:00</span>
                     </div>
                 </div>
             `;
@@ -772,7 +617,8 @@
     }
 
     /**
-     * Close the breakdown modal
+     * Close the breakdown modal - LOCAL ONLY VERSION
+     * No Socket.IO emissions - each dashboard operates independently
      */
     function closeBreakdownModal() {
         if (breakdownModalTimer) {
@@ -780,6 +626,9 @@
             breakdownModalTimer = null;
         }
         breakdownModal.classList.remove('open');
+        
+        // No Socket.IO emissions - closing is local to this browser tab only
+        console.log('Breakdown modal closed locally - no Socket.IO emissions');
     }
 
     // Event listeners for breakdown modal
@@ -804,7 +653,7 @@
         if (hasBreakdownSuccess) {
             // Small delay to ensure page is fully loaded
             setTimeout(() => {
-                showBreakdownModal();
+                scheduleBreakdownModal();
             }, 1000);
         }
     });
