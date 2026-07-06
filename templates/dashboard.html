@@ -185,7 +185,13 @@
 
     <div id="dashboard-content" class="mx-auto">
         <h1 class="text-3xl font-extrabold text-primary-accent p-6 text-center">
+            {% if user_group == 'Floor 1' %}
+            MTN, Assupol, Hollard, Clientele Perks and Vodacom Life Sales Performance Update
+            {% elif user_group == 'Floor 2' %}
             Vodacom Funeral Sales Performance Update
+            {% else %}
+            MTN, Assupol, Hollard, Clientele Perks, Vodacom Life and Vodacom Funeral Sales Performance Update
+            {% endif %}
         </h1>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
