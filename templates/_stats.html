@@ -7,7 +7,7 @@
 
 {% if payload %}
 {% set totals = payload.totals %}
-<div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
     <div class="bg-light-card-bg p-4 rounded-xl shadow-md border-b-4 border-primary-accent">
         <div class="flex items-end justify-between">
             <p class="text-4xl lg:text-5xl font-extrabold text-light-text">
@@ -16,6 +16,19 @@
             <div class="flex flex-col items-end">
                 <p class="text-sm font-medium uppercase text-gray-500">Total Target</p>
                 <i class="fas fa-crosshairs text-3xl opacity-50 text-primary-accent"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-light-card-bg p-4 rounded-xl shadow-md border-b-4 border-primary-accent"
+         title="Total talk time of all agents ÷ agents live today ({{ totals.agents_live or 0 }})">
+        <div class="flex items-end justify-between">
+            <p class="text-4xl lg:text-5xl font-extrabold text-light-text">
+                {{ totals.avg_talk_seconds | to_talk_time }}
+            </p>
+            <div class="flex flex-col items-end">
+                <p class="text-sm font-medium uppercase text-gray-500">Avg Talk Time</p>
+                <i class="fas fa-phone-volume text-3xl opacity-50 text-primary-accent"></i>
             </div>
         </div>
     </div>
@@ -139,7 +152,7 @@
                         {% endif %}">
                         {{ totals.shortfall | int | to_localized_string }}
                     </td>
-                    <td class="p-3 text-lg" title="Total talk time ÷ total answered calls across all these teams">
+                    <td class="p-3 text-lg" title="Total talk time ÷ agents live across all these teams">
                         {{ totals.avg_talk_seconds | to_talk_time }}
                     </td>
                     <td class="p-3 text-center">
