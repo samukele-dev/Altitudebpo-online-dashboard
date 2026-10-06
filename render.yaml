@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: altitude-bpo-dashboard
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PORT
+        value: 10000
+      # The Call Centre Reporting Suite backend this dashboard reads live team
+      # stats from (so this app never touches the call-centre DB and needs no
+      # IP whitelisting). Token: `python manage.py dashboard_api_token` there.
+      - key: SUITE_API_URL
+        sync: false
+      - key: SUITE_API_TOKEN
+        sync: false

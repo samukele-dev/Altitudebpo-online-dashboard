@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Altitude BPO Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'logo-blue': '#4D96FF',
+                        'logo-purple': '#9C78E4',
+                        'light-bg': '#FFFFFF',
+                        'light-card-bg': '#F9FAFB',
+                        'light-header-bg': '#FFFFFF',
+                        'light-text': '#1F2937',
+                        'light-border': '#E5E7EB',
+                        'primary-accent': '#4D96FF',
+                        'secondary-accent': '#9C78E4',
+                        'success-icon': '#10B981',
+                        'danger-icon': '#EF4444',
+                    },
+                    animation: {
+                        'countdown-pulse': 'countdown-pulse 1s ease-in-out infinite'
+                    },
+                    keyframes: {
+                        'countdown-pulse': {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0.7' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            padding-left: 3rem;
+            padding-right: 3rem;
+            overflow-x: hidden;
+        }
+
+        /* Breakdown Modal Styles */
+        .breakdown-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .breakdown-modal.open {
+            display: flex;
+            opacity: 1;
+        }
+
+        .breakdown-modal-content {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            transform: translateY(-100%);
+            opacity: 0;
+            animation: fly-in 0.8s ease-out forwards;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        @keyframes fly-in {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .countdown-timer {
+            background: linear-gradient(135deg, #4D96FF, #9C78E4);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(77, 150, 255, 0.3);
+        }
+
+        .breakdown-item {
+            transition: all 0.2s ease;
+        }
+
+        .breakdown-item:hover {
+            background: #f8fafc;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+
+<body class="bg-light-bg text-light-text min-h-screen">
+
+    <!-- Breakdown Popup Modal -->
+    <div id="breakdown-modal" class="breakdown-modal">
+        <div class="breakdown-modal-content">
+            <div class="flex justify-between items-center mb-6 border-b pb-3">
+                <h2 class="text-3xl font-extrabold text-primary-accent">Sales Breakdown</h2>
+                <div class="flex items-center space-x-4">
+                    <div id="breakdown-countdown" class="countdown-timer text-sm">
+                        Closing in: <span id="countdown-display">05:00</span>
+                    </div>
+                    <button id="close-breakdown-modal-btn" class="text-gray-500 hover:text-danger-icon">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="breakdown-data" class="space-y-6">
+                <!-- Default content when no data is available -->
+                <div class="team-section">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4"></h3>
+
+                    <!-- No data message -->
+                    <div class="text-center py-8">
+                        <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
+                        <div class="countdown-timer text-sm inline-block">
+                            Closing in: <span>05:00</span>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+
+    <div class="mx-auto">
+        <div
+            class="bg-light-header-bg p-4 rounded-lg shadow-lg flex flex-col md:flex-row justify-between items-center mb-6 border-b border-light-border">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Altitude BPO Logo"
+                class="h-10 w-auto mr-auto">
+            <p class="text-xl font-bold text-primary-accent mr-auto ml-4 hidden md:block">
+                {{ user_group }} Dashboard
+            </p>
+            <div class="flex space-x-4 mt-4 md:mt-0">
+                {% if user_group in ['Floor 1', 'Floor 2'] %}
+                <form action="{{ url_for('upload_breakdown_file') }}" method="post" enctype="multipart/form-data"
+                    class="flex" id="breakdown-form">
+                    <label for="breakdown-file-upload"
+                        class="flex items-center text-white bg-secondary-accent hover:bg-secondary-accent/90 px-4 py-2 rounded-lg transition duration-200 shadow-md text-md cursor-pointer">
+                        <i class="fas fa-chart-pie mr-2"></i> Breakdown
+                    </label>
+                    <input type="file" name="breakdown_file" id="breakdown-file-upload" required class="hidden">
+                </form>
+                {% endif %}
+
+                <a href="{{ url_for('logout') }}"
+                    class="flex items-center text-light-text hover:bg-gray-100 border border-light-border px-4 py-2 rounded-lg transition duration-200 shadow-sm text-md">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard-content" class="mx-auto">
+        <h1 class="text-3xl font-extrabold text-primary-accent p-6 text-center">
+            {% if user_group == 'Floor 1' %}
+            Assupol, Hollard and 1Life Sales Performance Update
+            {% elif user_group == 'Floor 2' %}
+            Vodacom Funeral Sales Performance Update
+            {% else %}
+            Assupol, Hollard, 1Life and Vodacom Funeral Sales Performance Update
+            {% endif %}
+        </h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mb-4" id="flash-messages-container">
+            {% for category, message in messages %}
+            <div class="p-3 mb-2 rounded-lg font-semibold flex items-center border 
+                {% if category == 'success' %} bg-green-50 text-green-800 border-green-300
+                {% elif category == 'danger' %} bg-red-50 text-red-800 border-red-300
+                {% else %} bg-blue-50 text-blue-800 border-blue-300
+                {% endif %}">
+                <i class="
+                    {% if category == 'success' %} fas fa-check-circle text-green-500
+                    {% elif category == 'danger' %} fas fa-exclamation-circle text-red-500
+                    {% else %} fas fa-info-circle text-blue-500
+                    {% endif %} mr-2"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div id="stats-container">
+            {% include '_stats.html' %}
+        </div>
+    </div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    // Global variables
+    let breakdownModalTimer = null;
+    const BREAKDOWN_MODAL_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds (05:00)
+    let socket = null;
+    let breakdownModalTimeout = null;
+
+    // Elements
+    const breakdownModal = document.getElementById('breakdown-modal');
+    const closeBreakdownModalBtn = document.getElementById('close-breakdown-modal-btn');
+    const countdownDisplay = document.getElementById('countdown-display');
+    const breakdownData = document.getElementById('breakdown-data');
+    const breakdownFileInput = document.getElementById('breakdown-file-upload');
+
+    // Enhanced Socket.IO connection with fallbacks  
+    function initializeSocket() {  
+        try {
+            socket = io({
+                transports: ['websocket', 'polling'],
+                upgrade: true,
+                rememberUpgrade: true,
+                timeout: 10000,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000
+            });
+
+            socket.on('connect', () => {
+                console.log('Socket.IO connected successfully');
+                socket.emit('join_dashboard', { group: '{{ user_group }}' });
+                console.log('✅ Real-time updates enabled');
+            });
+
+            socket.on('disconnect', (reason) => {
+                console.log('Socket.IO disconnected:', reason);
+                console.log('❌ Real-time updates disabled');
+            });
+
+            socket.on('reconnect', (attemptNumber) => {
+                console.log('✅ Socket.IO reconnected after', attemptNumber, 'attempts');
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('Socket.IO connection error:', error);
+                // Fallback to polling if WebSockets fail
+                if (socket.io.opts.transports.includes('websocket')) {
+                    console.log('Falling back to polling...');
+                    socket.io.opts.transports = ['polling'];
+                }
+            });
+
+            socket.on('data_updated', (data) => {
+                console.log('Data updated received:', data);
+                if (data.group === '{{ user_group }}' || data.group === 'Global') {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                }
+            });
+
+            // Listen for breakdown modal trigger from server
+            socket.on('trigger_breakdown_modal', (data) => {
+                console.log('Received breakdown modal trigger from server');
+                // Schedule modal to show after 5 minutes
+                scheduleBreakdownModal();
+            });
+
+            return socket;
+        } catch (error) {
+            console.error('Failed to initialize Socket.IO:', error);
+            startPollingFallback();
+            return null;
+        }
+    }
+
+    // Fallback polling if WebSockets fail
+    function startPollingFallback() {
+        console.log('Starting fallback polling...');
+        setInterval(() => {
+            fetch('/check_updates')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Polling check:', data);
+                })
+                .catch(error => console.error('Polling error:', error));
+        }, 30000); // Check every 30 seconds
+    }
+
+    /**
+     * Schedule breakdown modal to appear after 5 minutes
+     */
+    function scheduleBreakdownModal() {
+        console.log('⏰ Scheduling breakdown modal to appear in 5 minutes');
+        
+        // Clear any existing timeout
+        if (breakdownModalTimeout) {
+            clearTimeout(breakdownModalTimeout);
+        }
+        
+        // Schedule modal to show after 5 minutes (300,000 milliseconds)
+        breakdownModalTimeout = setTimeout(() => {
+            console.log('🔄 5 minutes elapsed - showing breakdown modal');
+            showBreakdownModal();
+        }, 5 * 60 * 1000); // 5 minutes in milliseconds
+    }
+
+    /**
+     * Handle breakdown file upload and schedule popup modal
+     */
+    function handleBreakdownUpload() {
+        const file = breakdownFileInput.files[0];
+        if (!file) return;
+
+        // Schedule modal after 5 minutes
+        scheduleBreakdownModal();
+
+        // Create FormData and submit via fetch instead of form submission
+        const formData = new FormData();
+        formData.append('breakdown_file', file);
+
+        fetch('{{ url_for("upload_breakdown_file") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.redirected) {
+                // The server is redirecting, which means the upload was successful
+                // We'll let the page reload naturally to show the flash message
+                console.log('Upload successful, page will reload');
+            } else {
+                return response.text();
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+        });
+    }
+
+    /**
+     * Show the breakdown modal with countdown timer
+     */
+    function showBreakdownModal() {
+        console.log('🔄 Showing breakdown modal');
+        
+        // Clear any existing timer
+        if (breakdownModalTimer) {
+            clearInterval(breakdownModalTimer);
+        }
+
+        // Show the modal
+        breakdownModal.classList.add('open');
+        
+        // Fetch and display breakdown data
+        fetchBreakdownData();
+        
+        let timeLeft = BREAKDOWN_MODAL_DURATION / 1000; // Convert to seconds
+        
+        // Update countdown display immediately
+        updateCountdownDisplay(timeLeft);
+        
+        // Start countdown timer
+        breakdownModalTimer = setInterval(() => {
+            timeLeft--;
+            updateCountdownDisplay(timeLeft);
+            
+            if (timeLeft <= 0) {
+                closeBreakdownModal();
+            }
+        }, 1000);
+    }
+
+    /**
+     * Update the countdown display
+     */
+    function updateCountdownDisplay(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        const display = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        countdownDisplay.textContent = display;
+        
+        // Add pulsing animation when under 1 minute
+        if (seconds <= 60) {
+            countdownDisplay.classList.add('animate-countdown-pulse');
+        } else {
+            countdownDisplay.classList.remove('animate-countdown-pulse');
+        }
+    }
+
+    /**
+     * Fetch breakdown data from the server
+     */
+    function fetchBreakdownData() {
+        fetch('{{ url_for("get_sales_breakdown") }}')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Received breakdown data:', data);
+                renderBreakdownData(data.breakdown);
+            })
+            .catch(error => {
+                console.error('Error fetching breakdown data:', error);
+                renderBreakdownData(null);
+            });
+    }
+
+    /**
+     * Render breakdown data in the modal - Updated to match image structure
+     */
+    function renderBreakdownData(breakdown) {
+        if (!breakdown || breakdown.length === 0) {
+            breakdownData.innerHTML = `
+                <div class="team-section">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4"></h3>
+                    
+                    <!-- No data message -->
+                    <div class="text-center py-8">
+                        <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
+                        <div class="countdown-timer text-sm inline-block">
+                            Closing in: <span>05:00</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        
+        // Team Section
+        html += `
+            <div class="team-section">
+                <h3 class="text-xl font-bold text-gray-800 mb-4"></h3>
+        `;
+
+        // Breakdown Categories
+        const categories = ['Vodacom Funeral', 'Media', 'Upsell'];
+        let hasCategories = false;
+        
+        categories.forEach(category => {
+            const item = breakdown.find(d => d.Category === category || d.Team === category);
+            if (item) {
+                hasCategories = true;
+                const value = item.Value || item.Target || item.Current || 0;
+                html += `
+                    <div class="breakdown-item flex justify-between items-center p-3 bg-gray-50 rounded-lg mb-3">
+                        <span class="font-semibold text-gray-700">${category}</span>
+                        <span class="text-lg font-bold text-primary-accent">${formatNumber(value)}</span>
+                    </div>
+                `;
+            }
+        });
+
+        if (!hasCategories) {
+            html += `
+                <div class="text-center py-8">
+                    <div class="text-gray-500 text-lg mb-2">No breakdown data available</div>
+                    <div class="countdown-timer text-sm inline-block">
+                        Closing in: <span>05:00</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Total Sales
+        const totalSalesItem = breakdown.find(d => d.Category === 'Total Sales' || d.Team === 'Total Sales');
+        if (totalSalesItem) {
+            const totalSales = totalSalesItem.Value || totalSalesItem.Target || totalSalesItem.Current || 0;
+            html += `
+                <div class="total-sales-section mt-6 pt-4 border-t border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xl font-bold text-gray-800">Total Sales</span>
+                        <span class="text-2xl font-extrabold text-success-icon">${formatNumber(totalSales)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `</div>`; // Close team-section
+
+        breakdownData.innerHTML = html;
+    }
+
+    /**
+     * Format numbers with commas
+     */
+    function formatNumber(num) {
+        const numericValue = typeof num === 'string' ? parseFloat(num) : num;
+        if (isNaN(numericValue)) return '0';
+        return numericValue.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    /**
+     * Close the breakdown modal - LOCAL ONLY VERSION
+     * No Socket.IO emissions - each dashboard operates independently
+     */
+    function closeBreakdownModal() {
+        if (breakdownModalTimer) {
+            clearInterval(breakdownModalTimer);
+            breakdownModalTimer = null;
+        }
+        breakdownModal.classList.remove('open');
+        
+        // No Socket.IO emissions - closing is local to this browser tab only
+        console.log('Breakdown modal closed locally - no Socket.IO emissions');
+    }
+
+    // Event listeners for breakdown modal
+    closeBreakdownModalBtn.addEventListener('click', closeBreakdownModal);
+    breakdownModal.addEventListener('click', (e) => {
+        if (e.target.id === 'breakdown-modal') {
+            closeBreakdownModal();
+        }
+    });
+
+    // Setup file input change listener
+    breakdownFileInput.addEventListener('change', handleBreakdownUpload);
+
+    // ---- Live team stats ----
+    // The numbers come from the reporting backend; re-fetch just the stats block every
+    // 30s (no full page reload, so the breakdown modal/timers are left alone).
+    const statsContainer = document.getElementById('stats-container');
+    const STATS_REFRESH_MS = 30 * 1000;
+
+    function refreshStats() {
+        // Don't swap the table out from under someone who is typing a target.
+        if (statsContainer.contains(document.activeElement) &&
+            document.activeElement.classList.contains('target-input')) {
+            return;
+        }
+        fetch('{{ url_for("stats_fragment") }}')
+            .then(r => {
+                if (r.status === 401) { window.location.href = '{{ url_for("login") }}'; return null; }
+                return r.ok ? r.text() : null;
+            })
+            .then(html => { if (html) statsContainer.innerHTML = html; })
+            .catch(err => console.error('Stats refresh failed:', err));
+    }
+    setInterval(refreshStats, STATS_REFRESH_MS);
+
+    // Floor managers edit a team's Target inline; it is saved (in the reporting backend) on change.
+    statsContainer.addEventListener('change', (e) => {
+        const input = e.target;
+        if (!input.classList.contains('target-input')) return;
+        const previous = input.defaultValue;
+        input.disabled = true;
+        fetch('{{ url_for("update_target") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team: input.dataset.team, floor: input.dataset.floor, target: input.value })
+        })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            if (ok && data.html) {
+                statsContainer.innerHTML = data.html;
+            } else {
+                input.value = previous;
+                input.disabled = false;
+                alert(data.error || 'Could not save the target.');
+            }
+        })
+        .catch(() => {
+            input.value = previous;
+            input.disabled = false;
+            alert('Could not save the target — check your connection and try again.');
+        });
+    });
+
+    // Check if we should show breakdown modal on page load (for Global users after upload)
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Socket.IO connection
+        initializeSocket();
+        
+        const hasBreakdownSuccess = document.querySelector('.flash-message.bg-green-50') !== null;
+        const isGlobalUser = '{{ user_group }}' === 'Global';
+        
+        if (hasBreakdownSuccess) {
+            // Small delay to ensure page is fully loaded
+            setTimeout(() => {
+                scheduleBreakdownModal();
+            }, 1000);
+        }
+    });
+</script>
+</body>
+
+</html>

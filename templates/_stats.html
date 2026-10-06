@@ -1,0 +1,178 @@
+{# KPI cards + team table. Rendered with the page and re-fetched every 30s (/stats_fragment). #}
+{% if problem %}
+<div class="mb-4 p-3 rounded-lg font-semibold flex items-center border bg-yellow-50 text-yellow-800 border-yellow-300">
+    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i> {{ problem }}
+</div>
+{% endif %}
+
+{% if payload %}
+{% set totals = payload.totals %}
+<div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-light-card-bg p-4 rounded-xl shadow-md border-b-4 border-primary-accent">
+        <div class="flex items-end justify-between">
+            <p class="text-4xl lg:text-5xl font-extrabold text-light-text">
+                {{ totals.target | int | to_localized_string }}
+            </p>
+            <div class="flex flex-col items-end">
+                <p class="text-sm font-medium uppercase text-gray-500">Total Target</p>
+                <i class="fas fa-crosshairs text-3xl opacity-50 text-primary-accent"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4 border-secondary-accent">
+        <div class="flex items-end justify-between">
+            <p class="text-4xl lg:text-5xl font-extrabold text-light-text">
+                {{ totals.current | int | to_localized_string }}
+            </p>
+            <div class="flex flex-col items-end">
+                <p class="text-sm font-medium uppercase text-gray-500">Total Current</p>
+                <i class="fas fa-hand-holding-usd text-3xl opacity-50 text-secondary-accent"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4
+        {% if totals.shortfall > 0 %} border-danger-icon
+        {% elif totals.shortfall < 0 %} border-success-icon
+        {% else %} border-gray-400
+        {% endif %}">
+        <div class="flex items-end justify-between">
+            <p class="text-4xl lg:text-5xl font-extrabold
+                {% if totals.shortfall > 0 %} text-danger-icon
+                {% elif totals.shortfall < 0 %} text-success-icon
+                {% else %} text-light-text
+                {% endif %}">
+                {{ totals.shortfall | int | to_localized_string }}
+            </p>
+            <div class="flex flex-col items-end">
+                <p class="text-sm font-medium uppercase text-gray-500">Total Shortfall</p>
+                <i class="fas fa-minus-circle text-3xl opacity-50
+                    {% if totals.shortfall > 0 %} text-danger-icon
+                    {% elif totals.shortfall < 0 %} text-success-icon
+                    {% else %} text-gray-400
+                    {% endif %}"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="bg-light-card-bg p-6 rounded-xl shadow-lg">
+    <div class="overflow-x-auto rounded-lg shadow-sm border border-light-border">
+        <table class="min-w-full table-auto">
+            <thead class="bg-primary-accent text-white">
+                <tr>
+                    <th class="p-3 text-left tracking-wider uppercase text-sm">Team</th>
+                    <th class="p-3 text-left tracking-wider uppercase text-sm">Target</th>
+                    <th class="p-3 text-left tracking-wider uppercase text-sm">Current</th>
+                    <th class="p-3 text-left tracking-wider uppercase text-sm">Shortfall</th>
+                    <th class="p-3 text-left tracking-wider uppercase text-sm">Avg Talk Time</th>
+                    <th class="p-3 text-center tracking-wider uppercase text-sm">Status</th>
+                </tr>
+            </thead>
+            <tbody id="stats-table-body" class="divide-y divide-light-border bg-white">
+                {% if not payload.teams %}
+                <tr>
+                    <td colspan="6" class="p-6 text-center text-gray-500">No teams have been set up for {{ user_group }} yet.</td>
+                </tr>
+                {% endif %}
+                {% for row in payload.teams %}
+                <tr class="hover:bg-gray-50 transition duration-150">
+                    <td class="p-3 font-medium">
+                        {{ row.team }}
+                        {% if user_group == 'Global' %}<span class="ml-2 text-xs text-gray-400">{{ row.floor }}</span>{% endif %}
+                        {% if not row.mapped %}
+                        <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200"
+                              title="This row isn't linked to a call-centre team yet, so it shows zeros.">not linked</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-3 text-lg font-bold">
+                        {% if can_edit_targets %}
+                        <input type="number" min="0" step="1" value="{{ row.target }}" data-team="{{ row.team }}" data-floor="{{ row.floor }}"
+                               class="target-input w-24 px-2 py-1 border border-light-border rounded-md text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary-accent"
+                               title="Edit this team's target — saved when you press Enter or click away">
+                        {% else %}
+                        {{ row.target | int | to_localized_string }}
+                        {% endif %}
+                    </td>
+                    <td class="p-3 text-lg font-bold">{{ row.current | int | to_localized_string }}</td>
+                    <td class="p-3 text-lg font-bold
+                        {% if row.shortfall > 0 %} text-danger-icon
+                        {% elif row.shortfall < 0 %} text-success-icon
+                        {% else %} text-gray-500
+                        {% endif %}">
+                        {{ row.shortfall | int | to_localized_string }}
+                    </td>
+                    <td class="p-3 text-lg font-bold">{{ row.avg_talk_seconds | to_talk_time }}</td>
+                    <td class="p-3 text-center">
+                        {% if row.target == 0 %}
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                            <i class="fas fa-bullseye mr-1"></i> No target set
+                        </span>
+                        {% elif row.current >= row.target %}
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-success-icon border border-green-200">
+                            <i class="fas fa-check-circle mr-1"></i> On Target
+                        </span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-danger-icon border border-red-200">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> Behind
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="bg-gray-100 border-t-2 border-primary-accent">
+                <tr class="font-extrabold">
+                    <td class="p-3 uppercase text-sm tracking-wider">
+                        {% if user_group == 'Global' %}All Floors Total{% else %}{{ user_group }} Total{% endif %}
+                    </td>
+                    <td class="p-3 text-lg">{{ totals.target | int | to_localized_string }}</td>
+                    <td class="p-3 text-lg">{{ totals.current | int | to_localized_string }}</td>
+                    <td class="p-3 text-lg
+                        {% if totals.shortfall > 0 %} text-danger-icon
+                        {% elif totals.shortfall < 0 %} text-success-icon
+                        {% else %} text-gray-500
+                        {% endif %}">
+                        {{ totals.shortfall | int | to_localized_string }}
+                    </td>
+                    <td class="p-3 text-lg" title="Total talk time ÷ total answered calls across all these teams">
+                        {{ totals.avg_talk_seconds | to_talk_time }}
+                    </td>
+                    <td class="p-3 text-center">
+                        {% if totals.target == 0 %}
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                            <i class="fas fa-bullseye mr-1"></i> No target set
+                        </span>
+                        {% elif totals.current >= totals.target %}
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-success-icon border border-green-200">
+                            <i class="fas fa-check-circle mr-1"></i> On Target
+                        </span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-danger-icon border border-red-200">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> Behind
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <p class="mt-3 text-xs text-gray-400 text-right">
+        Live for {{ payload.date }} · updated {{ payload.as_of[11:16] }} · refreshes every 30 seconds
+    </p>
+</div>
+{% else %}
+<div class="p-10 text-center bg-light-card-bg border border-light-border rounded-lg shadow-sm">
+    <p class="text-xl text-gray-500 flex items-center justify-center">
+        <i class="fas fa-exclamation-circle mr-3 text-secondary-accent text-3xl"></i>
+        Live call centre data isn't available yet for {{ user_group }}.
+    </p>
+</div>
+{% endif %}
