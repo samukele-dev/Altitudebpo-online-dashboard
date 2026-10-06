@@ -50,10 +50,13 @@ def to_localized_string(value):
     return f"{value:,.0f}"
 
 def to_talk_time(seconds):
-    """Seconds -> 'm:ss' (e.g. 91.8 -> '1:32'); no calls answered -> a dash."""
+    """Seconds -> 'm:ss' under an hour (91.8 -> '1:32'), 'h:mm:ss' from an hour up
+    (13304 -> '3:41:44'); no live agents -> a dash."""
     if seconds is None:
         return '—'
     total = int(round(seconds))
+    if total >= 3600:
+        return f"{total // 3600}:{total % 3600 // 60:02d}:{total % 60:02d}"
     return f"{total // 60}:{total % 60:02d}"
 
 app.jinja_env.filters['to_localized_string'] = to_localized_string

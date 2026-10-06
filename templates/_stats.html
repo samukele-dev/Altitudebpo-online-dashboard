@@ -7,51 +7,51 @@
 
 {% if payload %}
 {% set totals = payload.totals %}
-<div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-    <div class="bg-light-card-bg p-4 rounded-xl shadow-md border-b-4 border-primary-accent">
+<div id="kpi-cards" class="grid grid-cols-4 gap-3 md:gap-4 mb-6">
+    <div class="bg-light-card-bg p-3 rounded-xl shadow-md border-b-4 border-primary-accent">
         <div class="flex items-end justify-between">
-            <p class="text-4xl lg:text-5xl font-extrabold text-light-text">
+            <p class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-light-text">
                 {{ totals.target | int | to_localized_string }}
             </p>
             <div class="flex flex-col items-end">
-                <p class="text-sm font-medium uppercase text-gray-500">Total Target</p>
-                <i class="fas fa-crosshairs text-3xl opacity-50 text-primary-accent"></i>
+                <p class="text-[10px] sm:text-xs font-medium uppercase text-gray-500 text-right">Total Target</p>
+                <i class="fas fa-crosshairs text-lg sm:text-xl opacity-50 text-primary-accent"></i>
             </div>
         </div>
     </div>
 
-    <div class="bg-light-card-bg p-4 rounded-xl shadow-md border-b-4 border-primary-accent"
+    <div class="bg-light-card-bg p-3 rounded-xl shadow-md border-b-4 border-primary-accent"
          title="Total talk time of all agents ÷ agents live today ({{ totals.agents_live or 0 }})">
         <div class="flex items-end justify-between">
-            <p class="text-4xl lg:text-5xl font-extrabold text-light-text">
+            <p class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-light-text">
                 {{ totals.avg_talk_seconds | to_talk_time }}
             </p>
             <div class="flex flex-col items-end">
-                <p class="text-sm font-medium uppercase text-gray-500">Avg Talk Time</p>
-                <i class="fas fa-phone-volume text-3xl opacity-50 text-primary-accent"></i>
+                <p class="text-[10px] sm:text-xs font-medium uppercase text-gray-500 text-right">Avg Talk Time</p>
+                <i class="fas fa-phone-volume text-lg sm:text-xl opacity-50 text-primary-accent"></i>
             </div>
         </div>
     </div>
 
-    <div class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4 border-secondary-accent">
+    <div class="bg-light-card-bg p-3 rounded-xl shadow-md border-b-4 border-secondary-accent">
         <div class="flex items-end justify-between">
-            <p class="text-4xl lg:text-5xl font-extrabold text-light-text">
+            <p class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-light-text">
                 {{ totals.current | int | to_localized_string }}
             </p>
             <div class="flex flex-col items-end">
-                <p class="text-sm font-medium uppercase text-gray-500">Total Current</p>
-                <i class="fas fa-hand-holding-usd text-3xl opacity-50 text-secondary-accent"></i>
+                <p class="text-[10px] sm:text-xs font-medium uppercase text-gray-500 text-right">Total Current</p>
+                <i class="fas fa-hand-holding-usd text-lg sm:text-xl opacity-50 text-secondary-accent"></i>
             </div>
         </div>
     </div>
 
-    <div class="bg-light-card-bg p-6 rounded-xl shadow-md border-b-4
+    <div class="bg-light-card-bg p-3 rounded-xl shadow-md border-b-4
         {% if totals.shortfall > 0 %} border-danger-icon
         {% elif totals.shortfall < 0 %} border-success-icon
         {% else %} border-gray-400
         {% endif %}">
         <div class="flex items-end justify-between">
-            <p class="text-4xl lg:text-5xl font-extrabold
+            <p class="text-xl sm:text-2xl lg:text-3xl font-extrabold
                 {% if totals.shortfall > 0 %} text-danger-icon
                 {% elif totals.shortfall < 0 %} text-success-icon
                 {% else %} text-light-text
@@ -59,8 +59,8 @@
                 {{ totals.shortfall | int | to_localized_string }}
             </p>
             <div class="flex flex-col items-end">
-                <p class="text-sm font-medium uppercase text-gray-500">Total Shortfall</p>
-                <i class="fas fa-minus-circle text-3xl opacity-50
+                <p class="text-[10px] sm:text-xs font-medium uppercase text-gray-500 text-right">Total Shortfall</p>
+                <i class="fas fa-minus-circle text-lg sm:text-xl opacity-50
                     {% if totals.shortfall > 0 %} text-danger-icon
                     {% elif totals.shortfall < 0 %} text-success-icon
                     {% else %} text-gray-400
