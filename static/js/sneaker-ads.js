@@ -1,7 +1,7 @@
 /*
  * Sneaker Wall adverts for the call-centre screens.
  *
- * Every AD_EVERY_MS a full-screen advert pops up, stays for AD_SHOW_MS (1m30s) with a
+ * Every AD_EVERY_MS a full-screen advert pops up, stays for AD_SHOW_MS (1 minute) with a
  * live countdown, then disappears. Each advert showcases a different sneaker type;
  * they rotate in order. Preview instantly by opening the dashboard with  ?ad=now
  *
@@ -10,7 +10,7 @@
 (function () {
   'use strict';
 
-  var AD_SHOW_MS = 90 * 1000;            // how long an advert stays up: 1 minute 30 seconds
+  var AD_SHOW_MS = 60 * 1000;            // how long an advert stays up: 1 minute
   var AD_EVERY_MS = 10 * 60 * 1000;      // how often a new advert pops up
   var FIRST_AD_MS = 60 * 1000;           // first advert, this long after the page loads
   var RETRY_MS = 30 * 1000;              // re-check if something else (breakdown pop-up) is showing
@@ -36,8 +36,25 @@
       photos: [['57', 'Reebok Club C 85 Black'], ['58', 'Reebok Club C 85 Navy'], ['49', 'Puma Suede Cream/Black'], ['50', 'Puma Suede Black/Cream']] }
   ];
 
+  // A different motivational quote on each advert; they rotate in order.
+  var QUOTES = [
+    ['Success is the sum of small efforts, repeated day in and day out.', 'Robert Collier'],
+    ['Don’t watch the clock; do what it does. Keep going.', 'Sam Levenson'],
+    ['The harder you work for something, the greater you’ll feel when you achieve it.', ''],
+    ['It always seems impossible until it’s done.', 'Nelson Mandela'],
+    ['Every call is a new chance to make someone’s day, and yours.', ''],
+    ['Winners are not people who never fail, but people who never quit.', ''],
+    ['Believe you can and you’re halfway there.', 'Theodore Roosevelt'],
+    ['Your target is not a wall, it’s a doorway. Walk through it.', ''],
+    ['Champions keep playing until they get it right.', 'Billie Jean King'],
+    ['A smile in your voice can change the whole call.', ''],
+    ['Discipline is choosing between what you want now and what you want most.', ''],
+    ['Teamwork makes the dream work.', '']
+  ];
+
   var KEY_NEXT = 'sneakerAds.nextAt';
   var KEY_IDX = 'sneakerAds.index';
+  var KEY_QUOTE = 'sneakerAds.quote';
   function store(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 
@@ -55,7 +72,7 @@
   .sad-type{font-weight:900;line-height:1.02;font-size:clamp(2.4rem,5.2vw,5.4rem);color:#1F2937}\
   .sad-type span{color:#4D96FF}\
   .sad-line{font-size:clamp(1rem,1.7vw,1.7rem);color:#4b5563}\
-  .sad-rewards{display:flex;gap:1rem;flex-wrap:wrap;margin-top:1vh}\
+  .sad-quote{margin-top:1.2vh;padding-left:1rem;border-left:4px solid #4D96FF;font-size:clamp(1rem,1.6vw,1.6rem);font-style:italic;color:#1f2937}\n  .sad-quote small{display:block;margin-top:.3rem;font-style:normal;font-size:.7em;color:#6b7280}\n  .sad-rewards{display:flex;gap:1rem;flex-wrap:wrap;margin-top:1vh}\
   .sad-pill{padding:.7rem 1.2rem;border-radius:999px;font-weight:800;font-size:clamp(.9rem,1.4vw,1.4rem);color:#fff;background:#4D96FF}\
   .sad-pill.two{background:#9C78E4}\
   .sad-photos{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:.6rem;padding:.6rem;background:#fff;min-height:0}\
@@ -82,19 +99,20 @@
           '<div class="sad-eyebrow">Altitude BPO Sneaker Wall</div>' +
           '<div class="sad-type" id="sad-type"></div>' +
           '<div class="sad-line" id="sad-line"></div>' +
+          '<div class="sad-quote" id="sad-quote"></div>' +
           '<div class="sad-rewards"><span class="sad-pill">On target: free pair</span><span class="sad-pill two">2nd place: about 30% off</span></div>' +
         '</div>' +
         '<div class="sad-photos" id="sad-photos"></div>' +
       '</div>' +
       '<div class="sad-bar"><i id="sad-bar"></i></div>' +
       '<div class="sad-foot"><span>Hit your target and pick any pair from the wall.</span>' +
-        '<span class="sad-timer">Closing in <span id="sad-clock">01:30</span></span></div>' +
+        '<span class="sad-timer">Closing in <span id="sad-clock">01:00</span></span></div>' +
     '</div>';
   document.body.appendChild(root);
 
   var el = {
     type: root.querySelector('#sad-type'), line: root.querySelector('#sad-line'),
-    photos: root.querySelector('#sad-photos'), clock: root.querySelector('#sad-clock'),
+    quote: root.querySelector('#sad-quote'), photos: root.querySelector('#sad-photos'), clock: root.querySelector('#sad-clock'),
     bar: root.querySelector('#sad-bar')
   };
   var tick = null, hideTimer = null, startTimer = null;
@@ -123,6 +141,12 @@
     var last = words.pop();
     el.type.innerHTML = (words.length ? esc(words.join(' ')) + ' ' : '') + '<span>' + esc(last) + '</span>';
     el.line.textContent = ad.line;
+
+    var qi = parseInt(load(KEY_QUOTE), 10);
+    if (isNaN(qi) || qi < 0) qi = 0;
+    var q = QUOTES[qi % QUOTES.length];
+    store(KEY_QUOTE, (qi + 1) % QUOTES.length);
+    el.quote.innerHTML = '“' + esc(q[0]) + '”' + (q[1] ? '<small>— ' + esc(q[1]) + '</small>' : '');
     el.photos.innerHTML = ad.photos.map(function (p) {
       return '<div class="sad-photo"><img src="' + BASE + p[0] + '.jpeg" alt="' + esc(p[1]) + '"><span>' + esc(p[1]) + '</span></div>';
     }).join('');
