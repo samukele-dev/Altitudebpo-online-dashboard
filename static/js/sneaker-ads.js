@@ -74,7 +74,6 @@
   .sad-line{font-size:clamp(1rem,1.7vw,1.7rem);color:#4b5563}\
   .sad-quote{margin-top:1.2vh;padding-left:1rem;border-left:4px solid #4D96FF;font-size:clamp(1rem,1.6vw,1.6rem);font-style:italic;color:#1f2937}\n  .sad-quote small{display:block;margin-top:.3rem;font-style:normal;font-size:.7em;color:#6b7280}\n  .sad-rewards{display:flex;gap:1rem;flex-wrap:wrap;margin-top:1vh}\
   .sad-pill{padding:.7rem 1.2rem;border-radius:999px;font-weight:800;font-size:clamp(.9rem,1.4vw,1.4rem);color:#fff;background:#4D96FF}\
-  .sad-pill.two{background:#9C78E4}\
   .sad-photos{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:.6rem;padding:.6rem;background:#fff;min-height:0}\
   .sad-photo{position:relative;border-radius:1rem;overflow:hidden;background:#f3f4f6;min-height:0}\
   .sad-photo img{width:100%;height:100%;object-fit:cover;display:block}\
@@ -100,12 +99,12 @@
           '<div class="sad-type" id="sad-type"></div>' +
           '<div class="sad-line" id="sad-line"></div>' +
           '<div class="sad-quote" id="sad-quote"></div>' +
-          '<div class="sad-rewards"><span class="sad-pill">On target: free pair</span><span class="sad-pill two">2nd place: about 30% off</span></div>' +
+          '<div class="sad-rewards"><span class="sad-pill">Reach 120% of target: free pair</span></div>' +
         '</div>' +
         '<div class="sad-photos" id="sad-photos"></div>' +
       '</div>' +
       '<div class="sad-bar"><i id="sad-bar"></i></div>' +
-      '<div class="sad-foot"><span>Hit your target and pick any pair from the wall.</span>' +
+      '<div class="sad-foot"><span>Reach 120% of your target and pick any pair from the wall. Everyone who gets there wins.</span>' +
         '<span class="sad-timer">Closing in <span id="sad-clock">01:00</span></span></div>' +
     '</div>';
   document.body.appendChild(root);

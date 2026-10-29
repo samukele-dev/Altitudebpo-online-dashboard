@@ -36,6 +36,10 @@ FLOORS = ['Floor 1', 'Floor 2']
 # last numbers (clearly marked) instead of a blank screen.
 LAST_GOOD = {}   # group -> (payload, time.time())
 
+# Every open screen refreshes every 30s. A pull newer than this is reused, so ten
+# screens on one floor cost the Suite one request, not ten.
+STATS_FRESH_SECONDS = 20
+
 # Each floor's Sales Breakdown (still uploaded by hand) is kept fully isolated
 # from the other floor. Global has no data of its own - it's a combined view.
 BREAKDOWN_BY_FLOOR = {floor: [] for floor in FLOORS}
@@ -69,12 +73,14 @@ def load_team_stats(user_group):
     last good one if the Suite can't be reached right now (problem then says so),
     or None if there has never been a good pull.
     """
+    last = LAST_GOOD.get(user_group)
+    if last and time.time() - last[1] < STATS_FRESH_SECONDS:
+        return last[0], None
     try:
         payload = suite_client.get_team_stats(user_group)
         LAST_GOOD[user_group] = (payload, time.time())
         return payload, None
     except suite_client.SuiteError as e:
-        last = LAST_GOOD.get(user_group)
         if last:
             return last[0], f'Live data is unavailable right now ({e}) — showing the last numbers loaded.'
         return None, str(e)

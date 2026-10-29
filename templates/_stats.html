@@ -80,13 +80,14 @@
                     <th class="p-3 text-left tracking-wider uppercase text-sm">Current</th>
                     <th class="p-3 text-left tracking-wider uppercase text-sm">Shortfall</th>
                     <th class="p-3 text-left tracking-wider uppercase text-sm">Avg Talk Time</th>
+                    <th class="p-3 text-left tracking-wider uppercase text-sm">Headcount</th>
                     <th class="p-3 text-center tracking-wider uppercase text-sm">Status</th>
                 </tr>
             </thead>
             <tbody id="stats-table-body" class="divide-y divide-light-border bg-white">
                 {% if not payload.teams %}
                 <tr>
-                    <td colspan="6" class="p-6 text-center text-gray-500">No teams have been set up for {{ user_group }} yet.</td>
+                    <td colspan="7" class="p-6 text-center text-gray-500">No teams have been set up for {{ user_group }} yet.</td>
                 </tr>
                 {% endif %}
                 {% for row in payload.teams %}
@@ -117,6 +118,9 @@
                         {{ row.shortfall | int | to_localized_string }}
                     </td>
                     <td class="p-3 text-lg font-bold">{{ row.avg_talk_seconds | to_talk_time }}</td>
+                    <td class="p-3 text-lg font-bold" title="{{ row.agents_live or 0 }} on calls today">
+                        {{ row.headcount if row.headcount is not none else '—' }}
+                    </td>
                     <td class="p-3 text-center">
                         {% if row.target == 0 %}
                         <span
@@ -154,6 +158,9 @@
                     </td>
                     <td class="p-3 text-lg" title="Total talk time ÷ agents live across all these teams">
                         {{ totals.avg_talk_seconds | to_talk_time }}
+                    </td>
+                    <td class="p-3 text-lg" title="{{ totals.agents_live or 0 }} on calls today">
+                        {{ totals.headcount if totals.headcount is not none else '—' }}
                     </td>
                     <td class="p-3 text-center">
                         {% if totals.target == 0 %}
