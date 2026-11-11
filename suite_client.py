@@ -13,7 +13,7 @@ import requests
 
 # (connect, read) seconds — the Suite answers in well under a second normally;
 # a free-tier host waking from sleep can take longer, so the read side is generous.
-TIMEOUT = (5, 30)
+TIMEOUT = (5, 50)
 
 
 class SuiteError(Exception):
