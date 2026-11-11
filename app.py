@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import time
+import threading
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_socketio import SocketIO, emit, join_room
 from flask_cors import CORS
@@ -67,23 +68,38 @@ app.jinja_env.filters['to_localized_string'] = to_localized_string
 app.jinja_env.filters['to_talk_time'] = to_talk_time
 
 # --- Live team stats ---
+_STATS_LOCKS = {g: threading.Lock() for g in DASHBOARD_GROUPS}
+LAST_FAIL = {}   # group -> (error text, time.time())
+STATS_BACKOFF_SECONDS = 30   # after a failed pull, don't ask the Suite again for this long
+
 def load_team_stats(user_group):
     """
     (payload, problem). payload is the Suite's stats dict for this group, or the
     last good one if the Suite can't be reached right now (problem then says so),
     or None if there has never been a good pull.
+
+    One pull at a time per group: screens that refresh together wait for the first
+    one's answer instead of each hitting the Suite, and a failed pull (e.g. a 429)
+    is not retried for STATS_BACKOFF_SECONDS so we never hammer a struggling backend.
     """
-    last = LAST_GOOD.get(user_group)
-    if last and time.time() - last[1] < STATS_FRESH_SECONDS:
-        return last[0], None
-    try:
-        payload = suite_client.get_team_stats(user_group)
-        LAST_GOOD[user_group] = (payload, time.time())
-        return payload, None
-    except suite_client.SuiteError as e:
+    with _STATS_LOCKS[user_group]:
+        now = time.time()
+        last = LAST_GOOD.get(user_group)
+        if last and now - last[1] < STATS_FRESH_SECONDS:
+            return last[0], None
+        fail = LAST_FAIL.get(user_group)
+        if not (fail and now - fail[1] < STATS_BACKOFF_SECONDS):
+            try:
+                payload = suite_client.get_team_stats(user_group)
+                LAST_GOOD[user_group] = (payload, time.time())
+                LAST_FAIL.pop(user_group, None)
+                return payload, None
+            except suite_client.SuiteError as e:
+                fail = (str(e), time.time())
+                LAST_FAIL[user_group] = fail
         if last:
-            return last[0], f'Live data is unavailable right now ({e}) — showing the last numbers loaded.'
-        return None, str(e)
+            return last[0], f'Live data is unavailable right now ({fail[0]}) — showing the last numbers loaded.'
+        return None, fail[0]
 
 # --- Breakdown parsing (unchanged) ---
 def process_breakdown_data(df):
