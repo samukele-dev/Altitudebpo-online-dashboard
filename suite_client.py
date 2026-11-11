@@ -46,7 +46,7 @@ def _request(method, path, **kwargs):
             if detail.lstrip().lower().startswith(('<!doctype', '<html')):
                 # An HTML page, not the Suite's JSON: a proxy/CDN (e.g. Cloudflare's
                 # "Just a moment..." challenge) answered before the request reached Django.
-                detail = 'blocked by the host edge protection before reaching the Suite (HTML challenge page, not a Suite response)'
+                detail = 'blocked by the host edge protection before reaching the Suite (HTML challenge page, not a Suite response; server=' + (resp.headers.get('server') or '?') + ', cf-mitigated=' + (resp.headers.get('cf-mitigated') or '-') + ')'
         raise SuiteError(f'Reporting backend error ({resp.status_code}): {detail}')
     return resp.json()
 
