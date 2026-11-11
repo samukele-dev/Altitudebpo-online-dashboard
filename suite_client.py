@@ -28,7 +28,7 @@ def _headers():
     token = os.environ.get('SUITE_API_TOKEN')
     if not token:
         raise SuiteError('SUITE_API_TOKEN is not set on the dashboard.')
-    return {'Authorization': f'Token {token}'}
+    return {'Authorization': f'Token {token}', 'User-Agent': 'AltitudeBPO-Dashboard/1.0', 'Accept': 'application/json'}
 
 
 def _request(method, path, **kwargs):
@@ -43,6 +43,10 @@ def _request(method, path, **kwargs):
             detail = resp.json().get('error') or resp.text[:200]
         except ValueError:
             detail = resp.text[:200]
+            if detail.lstrip().lower().startswith(('<!doctype', '<html')):
+                # An HTML page, not the Suite's JSON: a proxy/CDN (e.g. Cloudflare's
+                # "Just a moment..." challenge) answered before the request reached Django.
+                detail = 'blocked by the host edge protection before reaching the Suite (HTML challenge page, not a Suite response)'
         raise SuiteError(f'Reporting backend error ({resp.status_code}): {detail}')
     return resp.json()
 
